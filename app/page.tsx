@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef, useCallback } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, Camera, Mic } from "lucide-react"
 import Image from "next/image"
 import { useAuth } from "@/contexts/auth-context"
 import type React from "react"
@@ -130,9 +130,16 @@ type DatingMatch = {
 
 // Main component
 export default function HomePage() {
-  const { user: authUser, profile: authProfile, signOut } = useAuth()
+  const { user: authUser, profile: authProfile, signOut, isDevMode } = useAuth()
   const isMobile = useMobile()
-  const supabase = createClientComponentClient()
+  const supabase = (() => {
+    try {
+      return createClientComponentClient()
+    } catch (error) {
+      console.warn("Supabase configuration missing, running in demo mode")
+      return null
+    }
+  })()
 
   // State for auth modal
   const [showAuthModal, setShowAuthModal] = useState(false)
@@ -142,7 +149,7 @@ export default function HomePage() {
   // All useState hooks
   const [isConnected, setIsConnected] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  // Removed isLoading state to fix infinite loading screen
   const [videoEnabled, setVideoEnabled] = useState(true)
   const [audioEnabled, setAudioEnabled] = useState(true)
   const [peopleSkipped, setPeopleSkipped] = useState(0)
@@ -166,7 +173,7 @@ export default function HomePage() {
   const [strangerVolume, setStrangerVolume] = useState(80)
   const [microphoneVolume, setMicrophoneVolume] = useState(80)
   const [speakerVolume, setSpeakerVolume] = useState(80)
-  const [onlineUsers, setOnlineUsers] = useState(Math.floor(Math.random() * 4000) + 500)
+  const [onlineUsers, setOnlineUsers] = useState(3000)
   const [selectedGender, setSelectedGender] = useState<Gender>("any")
   const [showWaitingScreen, setShowWaitingScreen] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -190,6 +197,11 @@ export default function HomePage() {
   const [isVideoOn, setIsVideoOn] = useState(true)
   const [isAudioOn, setIsAudioOn] = useState(true)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null)
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
+  
+  // Computed value that checks both auth context and local state
+  const isAuthenticated = isLoggedIn || (authUser && authProfile) || isDevMode
   const [musicUsageCount, setMusicUsageCount] = useState(0)
   const [isVip, setIsVip] = useState(false)
   const [showMusicPlayer, setShowMusicPlayer] = useState(false)
@@ -270,7 +282,7 @@ export default function HomePage() {
       imageUrl?: string,
     ) => {
       const newMessage: Message = {
-        id: Date.now().toString(),
+        id: `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
         text,
         sender,
         timestamp: new Date(),
@@ -289,7 +301,7 @@ export default function HomePage() {
       // If on mobile and the message is from stranger, show notification
       if (isMobile && sender === "stranger" && username !== "System" && !showChat) {
         const notification: ChatNotificationType = {
-          id: Date.now().toString(),
+          id: `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
           message: text,
           sender: username || "Stranger",
         }
@@ -319,242 +331,206 @@ export default function HomePage() {
     })
   }, [])
 
-  // Function to join a video chat
-  const joinVideoChat = useCallback(
-    async (roomId: string) => {
-      try {
-        // Check if user is logged in
-        if (!isLoggedIn) {
-          addDebugLog("User not logged in, showing auth modal")
-          setShowAuthModal(true)
-          setIsConnecting(false)
-          setIsSearchingForStranger(false)
-          return
-        }
+  // Removed old joinVideoChat function - replaced with WebRTC version below
+  // Removed duplicate function body
+  // Removed old function body - keeping only the new WebRTC version
 
-        // Verify Supabase session before proceeding
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-        if (!session) {
-          addDebugLog("No active session found, showing auth modal")
-          setShowAuthModal(true)
-          setIsConnecting(false)
-          setIsSearchingForStranger(false)
-          return
-        }
+  // Removed entire old function body
 
-        // Fetch token with the room ID
-        const tokenResponse = await fetch(`/api/token?room=${roomId}`)
-
-        if (!tokenResponse.ok) {
-          const errorText = await tokenResponse.text()
-          console.error(`Token API error: ${tokenResponse.status}`, errorText)
-
-          // If unauthorized, show auth modal
-          if (tokenResponse.status === 401) {
-            setShowAuthModal(true)
-            addDebugLog("Authentication required, showing login modal")
-          } else {
-            addMessage(`Error getting token: ${tokenResponse.status}. Please try again.`, "stranger", "System")
-          }
-
-          setIsConnecting(false)
-          setIsSearchingForStranger(false)
-          return
-        }
-
-        let tokenData
-        try {
-          tokenData = await tokenResponse.json()
-        } catch (jsonError) {
-          console.error("Failed to parse token response as JSON:", jsonError)
-          addMessage("Invalid response from server. Please try again.", "stranger", "System")
-          setIsConnecting(false)
-          setIsSearchingForStranger(false)
-          return
-        }
-
-        console.log("Token data:", tokenData)
-
-        // Set channel name and user ID
-        setChannelName(roomId)
-
-        // Update state
-        setIsConnected(true)
-        setIsConnecting(false)
-        setIsSearchingForStranger(false)
-
-        // Add a welcome message
-        if (selectedInterest) {
-          addMessage(`Connected! You're chatting with someone in the ${currentLobby} lobby.`, "stranger", "System")
-        } else {
-          addMessage(`Connected! You're chatting with someone in the General lobby.`, "stranger", "System")
-        }
-
-        // Set the stranger info based on the token data
-        setStrangerInfo(tokenData.identity, selectedCountry.code)
-
-        // Simulate stranger video after a delay (this will be replaced by actual LiveKit connection)
-        setTimeout(() => {
-          setHasStrangerVideo(true)
-        }, 2000)
-      } catch (error) {
-        console.error("Error joining video chat:", error)
-        setIsConnecting(false)
-        setIsSearchingForStranger(false)
-        addMessage("Error joining chat. Please try again.", "stranger", "System")
-      }
-    },
-    [
-      isLoggedIn,
-      selectedInterest,
-      currentLobby,
-      selectedCountry.code,
-      addMessage,
-      setStrangerInfo,
-      addDebugLog,
-      supabase.auth,
-    ],
-  )
-
-  // Start chat function - DEFINE THIS FIRST
-  const startChat = useCallback(async () => {
-    // Check if user is logged in
-    if (!isLoggedIn) {
-      addDebugLog("User not logged in, showing auth modal")
-      setShowAuthModal(true)
-      return
-    }
-
-    // Set states to show we're connecting
-    setIsConnecting(true)
-    setIsSearchingForStranger(true)
-    addDebugLog("Starting chat process")
-
+  // Join video chat room using WebRTC signaling server
+  const joinVideoChat = useCallback(async (roomId: string) => {
+    addDebugLog(`Joining video chat room: ${roomId}`)
+    
     try {
-      // First, check if camera is available
-      let hasVideo = false
-
-      try {
-        // Try to access the camera
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-
-        // If we get here, camera access was granted
-        hasVideo = true
-
-        // Stop the stream since we'll create a new one for the actual connection
-        stream.getTracks().forEach((track) => track.stop())
-
-        addDebugLog("Camera access granted")
-      } catch (cameraError) {
-        console.error("Camera access denied:", cameraError)
-        addDebugLog("Camera access denied")
-
-        // Show error message to user
-        setErrorMessage("Camera access is required to connect with others.")
-        setIsConnecting(false)
-        setIsSearchingForStranger(false)
-        addMessage(
-          "Camera access is required to connect with others. Please enable your camera and try again.",
-          "stranger",
-          "System",
-        )
-        return
-      }
-
-      // Verify Supabase session before proceeding
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) {
-        addDebugLog("No active session found, showing auth modal")
-        setShowAuthModal(true)
-        setIsConnecting(false)
-        setIsSearchingForStranger(false)
-        return
-      }
-
-      // Call the match API to find a match
-      const matchResponse = await fetch("/api/match", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      // Import WebRTCClient dynamically
+      const { WebRTCClient } = await import("@/lib/webrtc-client")
+      
+      // Get signaling server URL from environment
+      const signalingServerUrl = process.env.NEXT_PUBLIC_SIGNALING_SERVER_URL || "ws://localhost:8080"
+      
+      // Generate a unique user ID
+      const userId = `user_${Math.random().toString(36).substring(2, 15)}`
+      
+      // Create WebRTC client
+      const webrtcClient = new WebRTCClient(userId, signalingServerUrl, {
+        onRemoteStream: (stream) => {
+          console.log("🎥 REMOTE STREAM RECEIVED:", stream)
+          addDebugLog("Received remote video stream")
+          // Set the remote video stream
+          setRemoteStream(stream)
         },
-        body: JSON.stringify({
-          hasVideo,
-          interests: selectedInterest ? [selectedInterest.name] : ["General"],
-        }),
-      })
-
-      if (!matchResponse.ok) {
-        const errorData = await matchResponse.text()
-        console.error(`Match API error: ${matchResponse.status}`, errorData)
-
-        // If unauthorized, show auth modal
-        if (matchResponse.status === 401) {
-          setShowAuthModal(true)
-          addDebugLog("Authentication required for matchmaking, showing login modal")
-        } else {
-          addMessage(`Error finding a match: ${matchResponse.status}. Please try again.`, "stranger", "System")
+        onConnectionStateChange: (state) => {
+          console.log("🔗 CONNECTION STATE CHANGED:", state)
+          addDebugLog(`Connection state changed: ${state}`)
+          if (state === "connected") {
+            console.log("✅ CONNECTED! Updating UI state")
+        setIsConnected(true)
+        setIsSearchingForStranger(false)
+        setIsConnecting(false)
+            addMessage("Connected to another user!", "stranger", "System")
+          }
+        },
+        onError: (error) => {
+          console.error("WebRTC error:", error)
+          addDebugLog(`WebRTC error: ${error.message}`)
         }
-
+      })
+      
+      // Connect to signaling server and join room
+      await webrtcClient.connect()
+      await webrtcClient.joinRoom(roomId)
+      
+      // Start the local stream using the WebRTC client
+      await webrtcClient.startLocalStream()
+      
+      addDebugLog("Successfully joined room and published stream")
+      
+    } catch (error) {
+      console.error("Error joining video chat:", error)
+      addDebugLog(`Error joining video chat: ${error.message}`)
         setIsConnecting(false)
         setIsSearchingForStranger(false)
-        return
-      }
+    }
+  }, [])
 
-      const matchData = await matchResponse.json()
+  // Debug: Monitor localStream state changes
+  useEffect(() => {
+    console.log("localStream state changed:", localStream)
+  }, [localStream])
 
-      if (matchData.status === "matched") {
-        // We found a match! Join the room
-        joinVideoChat(matchData.roomId)
-      } else if (matchData.status === "waiting") {
-        // We're waiting for a match
-        addMessage("Waiting for someone to join. This may take a moment...", "stranger", "System")
-
-        // Set up polling to check for matches
-        const checkForMatches = async () => {
-          if (!isSearchingForStranger) return // Stop if user cancelled
-
-          try {
-            const checkResponse = await fetch("/api/check-match", {
-              method: "GET",
-            })
-
-            if (checkResponse.ok) {
-              const checkData = await checkResponse.json()
-
-              if (checkData.status === "matched") {
-                // We found a match! Join the room
-                joinVideoChat(checkData.roomId)
-                return // Stop polling
+  // Render local video
+  const renderLocalVideo = useCallback(() => {
+    console.log("renderLocalVideo called, localStream:", localStream)
+    return (
+      <div className="relative w-full h-full">
+        {localStream ? (
+          <video
+            ref={(video) => {
+              if (video && localStream) {
+                console.log("Setting video srcObject:", localStream)
+                video.srcObject = localStream
+                video.play().catch(e => console.log("Video play error:", e))
               }
-            }
+            }}
+            autoPlay
+            muted
+            playsInline
+            className="w-full h-full object-cover"
+            onLoadedMetadata={() => console.log("Video metadata loaded")}
+            onCanPlay={() => console.log("Video can play")}
+          />
+        ) : (
+          <div className="flex items-center justify-center w-full h-full bg-gray-900">
+            <div className="text-center">
+              <Camera className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-400">Your camera will appear here</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Video controls overlay */}
+        <div className="absolute bottom-4 left-4 flex gap-2">
+          <button
+            onClick={() => {
+              if (localStream) {
+                const videoTrack = localStream.getVideoTracks()[0]
+                if (videoTrack) {
+                  videoTrack.enabled = !videoTrack.enabled
+                  setIsVideoOn(videoTrack.enabled)
+                }
+              }
+            }}
+            className={`h-10 w-10 rounded-full flex items-center justify-center ${
+              isVideoOn ? "bg-white text-black" : "bg-red-500 text-white"
+            }`}
+          >
+            <Camera className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => {
+              if (localStream) {
+                const audioTrack = localStream.getAudioTracks()[0]
+                if (audioTrack) {
+                  audioTrack.enabled = !audioTrack.enabled
+                  setIsAudioOn(audioTrack.enabled)
+                }
+              }
+            }}
+            className={`h-10 w-10 rounded-full flex items-center justify-center ${
+              isAudioOn ? "bg-white text-black" : "bg-red-500 text-white"
+            }`}
+          >
+            <Mic className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+    )
+  }, [localStream, isVideoOn, isAudioOn])
 
-            // Continue polling
-            if (isSearchingForStranger) {
-              searchTimeoutRef.current = setTimeout(checkForMatches, 3000)
-            }
-          } catch (error) {
-            console.error("Error checking for matches:", error)
-            if (isSearchingForStranger) {
-              searchTimeoutRef.current = setTimeout(checkForMatches, 5000) // Retry with longer delay
-            }
-          }
-        }
+  // Render remote video
+  const renderRemoteVideo = useCallback(() => {
+    console.log("🎬 renderRemoteVideo called, remoteStream:", remoteStream)
+    return (
+      <div className="relative w-full h-full">
+        {remoteStream ? (
+          <video
+            ref={(video) => {
+              if (video && remoteStream) {
+                video.srcObject = remoteStream
+              }
+            }}
+            autoPlay
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="flex items-center justify-center w-full h-full bg-gray-800">
+            <div className="text-center">
+              <Users className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-400">Waiting for someone to join...</p>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }, [remoteStream])
 
-        // Start polling
-        searchTimeoutRef.current = setTimeout(checkForMatches, 3000)
-      }
+  // Simple WebRTC connection function
+  const startChat = useCallback(async () => {
+    console.log("🚀 SIMPLE STARTCHAT CALLED!")
+    
+    try {
+      // Clear any previous remote stream
+      setRemoteStream(null)
+      
+      // Get camera stream immediately
+      console.log("📹 Getting camera stream...")
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: true, 
+        audio: true 
+      })
+      console.log("✅ Camera stream obtained:", stream)
+      
+      // Set the stream in state
+      setLocalStream(stream)
+      console.log("✅ Local stream set in state")
+      
+      // Set connecting states
+      setIsConnecting(true)
+      setIsSearchingForStranger(true)
+      
+      // Join WebRTC room
+      console.log("🌐 Joining WebRTC room...")
+      await joinVideoChat("local-test-room")
+      console.log("✅ WebRTC connection established")
+      
     } catch (error) {
-      console.error("Error starting chat:", error)
-      addDebugLog(`Error starting chat: ${error.message}`)
+      console.error("❌ Error in startChat:", error)
       setIsConnecting(false)
       setIsSearchingForStranger(false)
-      addMessage("Error connecting to chat. Please try again.", "stranger", "System")
+      setRemoteStream(null) // Clear remote stream on error too
     }
-  }, [isLoggedIn, selectedInterest, addDebugLog, addMessage, joinVideoChat, supabase.auth, isSearchingForStranger])
+  }, [joinVideoChat])
 
   // Update the handleStartChat function to check for video before starting - DEFINE THIS SECOND
   const handleStartChat = useCallback(
@@ -574,8 +550,8 @@ export default function HomePage() {
         setStartChatClicked(true)
         addDebugLog("Start chat button clicked")
 
-        // Check if user is logged in
-        if (!isLoggedIn) {
+        // Check if user is logged in or dev mode is active
+        if (!isAuthenticated) {
           addDebugLog("User not logged in, showing auth modal")
           setShowAuthModal(true)
           setStartChatClicked(false)
@@ -644,12 +620,12 @@ export default function HomePage() {
       // Only show auth modal if not logged in
       setShowAuthModal(true)
     }
-  }, [isLoggedIn, user])
+  }, [isAuthenticated, user])
 
   // Skip to next person
   const skipToNext = useCallback(async () => {
     // Check if user is logged in
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       addDebugLog("User not logged in, showing auth modal")
       setShowAuthModal(true)
       return
@@ -664,6 +640,7 @@ export default function HomePage() {
     setIsConnecting(true)
     setIsSearchingForStranger(true)
     setRemoteUsers([])
+    setRemoteStream(null) // FIXED: Clear remote video stream
     setShowUserProfile(false)
 
     // Show finding next message
@@ -671,7 +648,7 @@ export default function HomePage() {
 
     // Start a new chat
     await startChat()
-  }, [isLoggedIn, currentLobby, addMessage, startChat, addDebugLog])
+  }, [isAuthenticated, currentLobby, addMessage, startChat, addDebugLog])
 
   // Stop the chat - MODIFIED to just stop searching but keep showing yourself
   const stopChat = useCallback(async () => {
@@ -681,11 +658,13 @@ export default function HomePage() {
       searchTimeoutRef.current = null
     }
 
-    // Update state
+    // Update state - FIXED: Reset isConnecting to false
     setIsConnected(false)
+    setIsConnecting(false)
     setIsSearchingForStranger(false)
     setHasStrangerVideo(false)
     setRemoteUsers([])
+    setRemoteStream(null) // FIXED: Clear remote video stream when stopping
     addDebugLog("Chat stopped, but camera still active")
 
     // Show a message that we've stopped searching
@@ -713,42 +692,13 @@ export default function HomePage() {
     }
   }, [addMessage])
 
-  // Update the renderLocalVideo function to handle camera access denied
-  const renderLocalVideo = useCallback(() => {
-    if (isCameraAccessDenied) {
-      return (
-        <CameraAccessDenied
-          onRetry={() => {
-            setIsCameraAccessDenied(false)
-            setupLocalCamera()
-          }}
-        />
-      )
-    }
-
-    return (
-      <CameraView
-        isLocal={true}
-        username={user?.username || "You"}
-        countryFlag={selectedCountry.flag}
-        isActive={true}
-        profileImage={user?.profileImage}
-        onVideoPublished={(published) => {
-          setHasPublishedVideo(published)
-          if (!published) {
-            setIsCameraAccessDenied(true)
-          }
-          addDebugLog(`Local video published: ${published}`)
-        }}
-      />
-    )
-  }, [isCameraAccessDenied, user, selectedCountry.flag, setupLocalCamera, addDebugLog])
+  // Removed duplicate renderLocalVideo function - using WebRTC version instead
 
   // Add notification
   const addNotification = useCallback(
     (type: "commend" | "kick" | "received-commend" | "super-like", message: string) => {
       const newNotification = {
-        id: Date.now().toString(),
+        id: `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
         type,
         message,
       }
@@ -770,7 +720,7 @@ export default function HomePage() {
     setShowThumbsUp(true)
     setTimeout(() => setShowThumbsUp(false), 2000)
 
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       addMessage("Please sign in to rate users", "stranger", "System")
       setShowAuthModal(true)
       return
@@ -788,14 +738,14 @@ export default function HomePage() {
 
     // Show a message in the chat
     addMessage(`You gave ${strangerUsername} a thumbs up!`, "stranger", "System")
-  }, [isLoggedIn, strangerUsername, addMessage, addNotification])
+  }, [isAuthenticated, strangerUsername, addMessage, addNotification])
 
   // Handle direct thumbs down from video overlay
   const handleDirectThumbsDown = useCallback(async () => {
     setShowThumbsDown(true)
     setTimeout(() => setShowThumbsDown(false), 2000)
 
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       addMessage("Please sign in to rate users", "stranger", "System")
       setShowAuthModal(true)
       return
@@ -822,13 +772,13 @@ export default function HomePage() {
     setTimeout(() => {
       skipToNext()
     }, 1500)
-  }, [isLoggedIn, strangerUsername, addMessage, addNotification, skipToNext])
+  }, [isAuthenticated, strangerUsername, addMessage, addNotification, skipToNext])
 
   // Handle super like
   const handleSuperLike = useCallback(
     (username: string) => {
       // Check if user is logged in
-      if (!isLoggedIn) {
+      if (!isAuthenticated) {
         addMessage("Please sign in to use Super Like", "stranger", "System")
         setShowAuthModal(true)
         return
@@ -864,13 +814,13 @@ export default function HomePage() {
         }, 3000)
       }
     },
-    [isLoggedIn, strangerCountry.code, strangerCountry.flag, addMessage, addNotification],
+    [isAuthenticated, strangerCountry.code, strangerCountry.flag, addMessage, addNotification],
   )
 
   // Handle using a free super like
   const handleUseFreeSuper = useCallback(() => {
     // Check if user is logged in
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       addMessage("Please sign in to use Super Like", "stranger", "System")
       setShowAuthModal(true)
       return
@@ -879,13 +829,13 @@ export default function HomePage() {
     if (freeSuperLikes > 0) {
       setFreeSuperLikes((prev) => prev - 1)
     }
-  }, [isLoggedIn, freeSuperLikes, addMessage])
+  }, [isAuthenticated, freeSuperLikes, addMessage])
 
   // Handle commendation
   const handleCommendation = useCallback(
     (commendation: Omit<UserCommendation, "id" | "timestamp">) => {
       // Check if user is logged in
-      if (!isLoggedIn) {
+      if (!isAuthenticated) {
         addMessage("Please sign in to commend users", "stranger", "System")
         setShowAuthModal(true)
         return
@@ -915,14 +865,14 @@ export default function HomePage() {
         "System",
       )
     },
-    [isLoggedIn, strangerUsername, addNotification, addMessage],
+    [isAuthenticated, strangerUsername, addNotification, addMessage],
   )
 
   // Handle kick vote
   const handleKickVote = useCallback(
     (reason: string) => {
       // Check if user is logged in
-      if (!isLoggedIn) {
+      if (!isAuthenticated) {
         addMessage("Please sign in to report users", "stranger", "System")
         setShowAuthModal(true)
         return
@@ -954,89 +904,22 @@ export default function HomePage() {
       // Skip to next person
       skipToNext()
     },
-    [isLoggedIn, strangerUsername, addNotification, addMessage, skipToNext],
+    [isAuthenticated, strangerUsername, addNotification, addMessage, skipToNext],
   )
 
-  // Function to render the remote video
-  const renderRemoteVideo = useCallback(() => {
-    // Find the first remote user with a video track
-    const remoteUser = remoteUsers.find((user) => user.videoTrack)
-    const isDatingMode = currentLobby === "Speed Dating"
-
-    return (
-      <div className="relative h-full">
-        <CameraView
-          isLocal={false}
-          username={strangerUsername}
-          countryFlag={strangerCountry.flag}
-          isActive={hasStrangerVideo && isConnected}
-          // videoTrack={remoteUser?.videoTrack}
-          // audioTrack={remoteUser?.audioTrack}
-          onProfileClick={() => setShowUserProfile(true)}
-        />
-
-        {/* Dating Mode Overlay */}
-        {isDatingMode && <DatingModeOverlay isVIP={isVip} />}
-
-        {isConnected && hasStrangerVideo && (
-          <VideoOverlayActions
-            onThumbsUp={handleDirectThumbsUp}
-            onThumbsDown={handleDirectThumbsDown}
-            onViewProfile={() => setShowUserProfile(true)}
-            onSuperLike={isDatingMode ? handleSuperLike : undefined}
-            onUpgrade={() => setIsVipPopupOpen(true)}
-            onUseFreeSuper={handleUseFreeSuper}
-            username={strangerUsername}
-            isVIP={isVip}
-            freeSuperLikes={freeSuperLikes}
-            isDatingMode={isDatingMode}
-            targetUserId={strangerUsername} // In a real app, this would be the actual user ID
-          />
-        )}
-
-        {/* Thumbs animations */}
-        {showThumbsUp && <ThumbsAnimation type="up" />}
-        {showThumbsDown && <ThumbsAnimation type="down" />}
-
-        {/* Heart animation for super likes */}
-        {showHeartAnimation && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="animate-ping text-pink-500 opacity-75" style={{ fontSize: "150px" }}>
-              ❤️
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }, [
-    remoteUsers,
-    currentLobby,
-    strangerUsername,
-    strangerCountry.flag,
-    hasStrangerVideo,
-    isConnected,
-    isVip,
-    handleDirectThumbsUp,
-    handleDirectThumbsDown,
-    handleSuperLike,
-    handleUseFreeSuper,
-    freeSuperLikes,
-    showThumbsUp,
-    showThumbsDown,
-    showHeartAnimation,
-  ])
+  // Removed duplicate renderRemoteVideo function - using WebRTC version instead
 
   // Handle country selection - VIP feature
   const handleCountrySelect = useCallback(() => {
     // Check if user is logged in
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       addMessage("Please sign in to select country", "stranger", "System")
       setShowAuthModal(true)
       return
     }
 
     setShowCountrySelector(true)
-  }, [isLoggedIn, addMessage])
+  }, [isAuthenticated, addMessage])
 
   // Change country
   const changeCountry = useCallback(
@@ -1063,14 +946,14 @@ export default function HomePage() {
   // Toggle friends list
   const toggleFriendsList = useCallback(() => {
     // Check if user is logged in
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       addMessage("Please sign in to view friends", "stranger", "System")
       setShowAuthModal(true)
       return
     }
 
     setShowFriendsList(!showFriendsList)
-  }, [isLoggedIn, showFriendsList, addMessage])
+  }, [isAuthenticated, showFriendsList, addMessage])
 
   // Play track
   const playTrack = useCallback(
@@ -1126,7 +1009,7 @@ export default function HomePage() {
   // Handle subscribe
   const handleSubscribe = useCallback(() => {
     // Check if user is logged in
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       addMessage("Please sign in to subscribe", "stranger", "System")
       setShowAuthModal(true)
       setIsVipPopupOpen(false)
@@ -1142,7 +1025,7 @@ export default function HomePage() {
     setUser(updatedUser)
     setIsVipPopupOpen(false)
     setIsVip(true)
-  }, [user, isLoggedIn, addMessage])
+  }, [user, isAuthenticated, addMessage])
 
   // Remove notification
   const removeNotification = useCallback((id: string) => {
@@ -1152,7 +1035,7 @@ export default function HomePage() {
   const sendFriendRequest = useCallback(
     (username: string) => {
       // Check if user is logged in
-      if (!isLoggedIn) {
+      if (!isAuthenticated) {
         addMessage("Please sign in to send friend requests", "stranger", "System")
         setShowAuthModal(true)
         return
@@ -1162,7 +1045,7 @@ export default function HomePage() {
       console.log(`Friend request sent to ${username}`)
       addMessage(`Friend request sent to ${username}`, "stranger", "System")
     },
-    [addMessage, isLoggedIn],
+    [addMessage, isAuthenticated],
   )
 
   const sendMessage = useCallback(() => {
@@ -1227,7 +1110,15 @@ export default function HomePage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        setIsLoading(true)
+        // Removed setIsLoading to fix infinite loading screen
+        
+        if (!supabase) {
+          // Skip authentication if Supabase is not configured
+          addDebugLog("Supabase not configured, skipping auth check")
+          // Removed setIsLoading to fix infinite loading screen
+          return
+        }
+        
         const {
           data: { session },
         } = await supabase.auth.getSession()
@@ -1281,15 +1172,17 @@ export default function HomePage() {
         // Show auth modal on error
         setShowAuthModal(true)
       } finally {
-        setIsLoading(false)
+        // Removed setIsLoading to fix infinite loading screen
       }
     }
 
     checkAuth()
 
     // Set up auth state listener
+    let subscription: any = null
+    if (supabase) {
     const {
-      data: { subscription },
+        data: { subscription: authSubscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       addDebugLog(`Auth state changed: ${event}`)
 
@@ -1339,11 +1232,15 @@ export default function HomePage() {
         setUser(null)
       }
     })
+      subscription = authSubscription
+    }
 
     return () => {
+      if (subscription) {
       subscription.unsubscribe()
     }
-  }, [supabase.auth, addDebugLog, userReputation])
+    }
+  }, [supabase])
 
   // Sync auth user with local state
   useEffect(() => {
@@ -1377,17 +1274,87 @@ export default function HomePage() {
 
   // Add this useEffect to handle the start chat button
   useEffect(() => {
-    if (startChatClicked && !isLoggedIn) {
+    if (startChatClicked && !isAuthenticated) {
       setShowAuthModal(true)
       setStartChatClicked(false)
+    } else if (startChatClicked && isAuthenticated) {
+      // User is authenticated or dev mode is active, start the chat process
+      startChat()
+      setStartChatClicked(false)
     }
-  }, [startChatClicked, isLoggedIn])
+  }, [startChatClicked, isAuthenticated])
+
 
   // Check if user is logged in
   useEffect(() => {
+    // Handle dev mode user
+    if (isDevMode) {
+      const storedUser = typeof window !== 'undefined' ? localStorage.getItem("chatchill-dev-user") : null
+      const storedSession = typeof window !== 'undefined' ? localStorage.getItem("chatchill-dev-session") : null
+      const storedProfile = typeof window !== 'undefined' ? localStorage.getItem("chatchill-dev-profile") : null
+      
+      if (storedUser && storedSession && storedProfile) {
+        const devUser = JSON.parse(storedUser)
+        const devProfile = JSON.parse(storedProfile)
+        
+        const userData: UserType = {
+          username: devProfile.username || devUser.email?.split("@")[0] || "DevUser",
+          email: devUser.email,
+          isLoggedIn: true,
+          instagram: devProfile.instagram,
+          snapchat: devProfile.snapchat,
+          facebook: devProfile.facebook,
+          discord: devProfile.discord,
+          profileImage: devProfile.avatar_url,
+          country: devProfile.country,
+          countryFlag: devProfile.country ? COUNTRIES.find(c => c.code === devProfile.country)?.flag : undefined,
+          countryName: devProfile.country ? COUNTRIES.find(c => c.code === devProfile.country)?.name : undefined,
+          isVIP: devProfile.is_vip || false,
+          subscriptionDate: devProfile.subscription_date,
+          reputation: userReputation,
+        }
+
+        setUser(userData)
+        setIsLoggedIn(true)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem("user", JSON.stringify(userData))
+        }
+
+        addDebugLog(`Dev mode user restored: ${userData.username}`)
+        return
+      }
+    }
+    
+    // Handle dev mode user from auth context
+    if (isDevMode && authUser && authProfile) {
+      const userData: UserType = {
+        username: authProfile.username || authUser.email?.split("@")[0] || "DevUser",
+        email: authUser.email,
+        isLoggedIn: true,
+        instagram: authProfile.instagram,
+        snapchat: authProfile.snapchat,
+        facebook: authProfile.facebook,
+        discord: authProfile.discord,
+        profileImage: authProfile.avatar_url,
+        country: authProfile.country,
+        countryFlag: authProfile.country ? COUNTRIES.find(c => c.code === authProfile.country)?.flag : undefined,
+        countryName: authProfile.country ? COUNTRIES.find(c => c.code === authProfile.country)?.name : undefined,
+        isVIP: authProfile.is_vip || false,
+        subscriptionDate: authProfile.subscription_date,
+        reputation: userReputation,
+      }
+
+      setUser(userData)
+      setIsLoggedIn(true)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem("user", JSON.stringify(userData))
+      }
+
+      addDebugLog(`Dev mode user synced: ${userData.username}`)
+    }
     // Only run this if we don't have auth user data
-    if (!authUser) {
-      const storedUser = localStorage.getItem("user")
+    else if (!authUser && !isDevMode) {
+      const storedUser = typeof window !== 'undefined' ? localStorage.getItem("user") : null
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser)
         // Initialize reputation if not present
@@ -1404,7 +1371,7 @@ export default function HomePage() {
     }
 
     // Load friends
-    const storedFriends = localStorage.getItem("friends")
+    const storedFriends = typeof window !== 'undefined' ? localStorage.getItem("friends") : null
     if (storedFriends) {
       setFriends(JSON.parse(storedFriends))
     } else {
@@ -1416,11 +1383,13 @@ export default function HomePage() {
         { id: "4", name: "Riley42", online: true },
       ]
       setFriends(defaultFriends)
+      if (typeof window !== 'undefined') {
       localStorage.setItem("friends", JSON.stringify(defaultFriends))
+      }
     }
 
     // Load dating matches
-    const storedMatches = localStorage.getItem("datingMatches")
+    const storedMatches = typeof window !== 'undefined' ? localStorage.getItem("datingMatches") : null
     if (storedMatches) {
       setDatingMatches(JSON.parse(storedMatches))
     } else {
@@ -1446,7 +1415,9 @@ export default function HomePage() {
         },
       ]
       setDatingMatches(defaultMatches)
+      if (typeof window !== 'undefined') {
       localStorage.setItem("datingMatches", JSON.stringify(defaultMatches))
+      }
     }
 
     // Load free super likes
@@ -1484,10 +1455,7 @@ export default function HomePage() {
     const newUserId = Math.floor(Math.random() * 100000)
     setUserId(newUserId)
 
-    // Simulate initial loading
-    setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
+    // Loading is now handled by initial state
 
     // Check VIP status
     const savedVipState = localStorage.getItem("isVip")
@@ -1559,17 +1527,19 @@ export default function HomePage() {
         clearTimeout(searchTimeoutRef.current)
       }
     }
-  }, [authUser, userReputation, isVip, addDebugLog, playNextTrack, setupLocalCamera])
+  }, [authUser, authProfile, userReputation, isVip, addDebugLog, playNextTrack, setupLocalCamera, isDevMode])
 
   // Save login state to localStorage when it changes
   useEffect(() => {
+    if (typeof window !== 'undefined') {
     localStorage.setItem("isLoggedIn", isLoggedIn.toString())
     localStorage.setItem("isVip", isVip.toString())
+    }
   }, [isLoggedIn, isVip])
 
   // Save selected interest to localStorage when it changes
   useEffect(() => {
-    if (selectedInterest) {
+    if (selectedInterest && typeof window !== 'undefined') {
       localStorage.setItem("selectedInterest", JSON.stringify(selectedInterest))
       setCurrentLobby(selectedInterest.name)
       // Don't automatically start chat or reload
@@ -1578,12 +1548,16 @@ export default function HomePage() {
 
   // Save free super likes count to localStorage when it changes
   useEffect(() => {
+    if (typeof window !== 'undefined') {
     localStorage.setItem("freeSuperLikes", freeSuperLikes.toString())
+    }
   }, [freeSuperLikes])
 
   // Save dating matches to localStorage when they change
   useEffect(() => {
+    if (typeof window !== 'undefined') {
     localStorage.setItem("datingMatches", JSON.stringify(datingMatches))
+    }
   }, [datingMatches])
 
   // Connect isLoginModalOpen to showAuthModal
@@ -1594,23 +1568,7 @@ export default function HomePage() {
     }
   }, [isLoginModalOpen])
 
-  // Loading screen
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-black">
-        <div className="mb-8 flex items-center justify-center">
-          <Image
-            src="/images/logo.png"
-            alt="ChatChill Logo"
-            width={500}
-            height={250}
-            className={isMobile ? "w-64" : "w-96"}
-          />
-        </div>
-        <Loader2 className="h-12 w-12 animate-spin text-yellow-500" />
-      </div>
-    )
-  }
+  // Removed loading screen to fix infinite loading issue
 
   return (
     <DatingThemeProvider isDatingMode={currentLobby === "Speed Dating"}>
@@ -1692,7 +1650,7 @@ export default function HomePage() {
                   <div className="flex h-full flex-col items-center justify-center p-4">
                     <div className="flex items-center gap-3 text-green-500 mb-8">
                       <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse"></div>
-                      <p className="text-xl font-medium">{onlineUsers.toLocaleString()} users online</p>
+                      <p className="text-xl font-medium" suppressHydrationWarning={true}>{onlineUsers} users online</p>
                     </div>
                     {!isLoggedIn ? (
                       <div className="flex flex-col items-center gap-4 mb-8">

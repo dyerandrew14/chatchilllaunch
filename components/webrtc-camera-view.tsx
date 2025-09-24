@@ -237,6 +237,23 @@ export function WebRTCCameraView({
         playsInline
         muted={isLocal} // Mute local video to prevent feedback
         className={cn("h-full w-full object-cover", !isActive && "hidden", isConnecting && "opacity-50")}
+        onLoadedMetadata={() => {
+          // Handle video play promise to prevent interruption errors
+          if (videoRef.current) {
+            const playPromise = videoRef.current.play()
+            if (playPromise !== undefined) {
+              playPromise.catch((error) => {
+                console.log("Video play was interrupted:", error)
+                // Don't throw the error, just log it
+              })
+            }
+          }
+        }}
+        onError={(e) => {
+          console.error("Video element error:", e)
+          setHasError(true)
+          setErrorMessage("Video playback error")
+        }}
       />
 
       {/* Connection state indicator */}

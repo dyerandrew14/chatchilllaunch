@@ -69,7 +69,7 @@ export default function FriendsPage() {
 
     // Add to outgoing requests
     const newRequest = {
-      id: Date.now().toString(),
+      id: `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
       name: searchQuery,
       incoming: false,
     }

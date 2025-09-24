@@ -36,11 +36,14 @@ export class WebRTCClient {
         this.socket.onopen = () => {
           console.log("Connected to signaling server")
 
-          // Register with the signaling server
-          this.sendToSignalingServer({
-            type: "register",
-            userId: this.userId,
-          })
+          // Small delay to ensure connection is fully ready
+          setTimeout(() => {
+            // Register with the signaling server
+            this.sendToSignalingServer({
+              type: "register",
+              userId: this.userId,
+            })
+          }, 100)
 
           resolve()
         }
@@ -55,8 +58,12 @@ export class WebRTCClient {
         }
 
         this.socket.onerror = (error) => {
-          console.error("WebSocket error:", error)
-          reject(error)
+          console.error("WebSocket error details:", error)
+          const errorMessage = "WebSocket connection failed"
+          if (this.config.onError) {
+            this.config.onError(new Error(errorMessage))
+          }
+          reject(new Error(errorMessage))
         }
       } catch (err) {
         console.error("Failed to connect to signaling server:", err)
@@ -161,9 +168,23 @@ export class WebRTCClient {
   // Send message to signaling server
   private sendToSignalingServer(message: any): void {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify(message))
+      try {
+        this.socket.send(JSON.stringify(message))
+        console.log("Message sent to signaling server:", message.type)
+      } catch (error) {
+        console.error("Failed to send message to signaling server:", error)
+        if (this.config.onError) {
+          this.config.onError(new Error(`Failed to send message: ${error}`))
+        }
+      }
     } else {
-      console.error("Cannot send message: not connected to signaling server")
+      console.warn("Cannot send message: WebSocket state is", this.socket?.readyState)
+      // Don't trigger error callback for this - it's expected during connection setup
+      if (message.type !== "register") {
+        if (this.config.onError) {
+          this.config.onError(new Error("Not connected to signaling server"))
+        }
+      }
     }
   }
 

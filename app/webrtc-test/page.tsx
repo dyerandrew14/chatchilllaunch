@@ -1,4 +1,3 @@
-import { WebRTCCameraView } from "@/components/webrtc-camera-view";
 "use client"
 
 import { useState, useEffect, useCallback } from "react"

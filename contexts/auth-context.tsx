@@ -40,8 +40,10 @@ type AuthContextType = {
   profile: Profile | null
   isLoading: boolean
   error: Error | null
+  isDevMode: boolean
   signOut: () => Promise<void>
   updateProfile: (data: ProfileUpdateData) => Promise<void>
+  enableDevMode: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -52,12 +54,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-  const [supabase] = useState(() => createClientComponentClient<Database>())
+  const [isDevMode, setIsDevMode] = useState(false)
+  const [supabase] = useState(() => {
+    try {
+      return createClientComponentClient<Database>()
+    } catch (error) {
+      console.warn("Supabase configuration missing, running in demo mode")
+      return null
+    }
+  })
 
   useEffect(() => {
     const getSession = async () => {
       try {
         setIsLoading(true)
+
+        // Check if dev mode is enabled in localStorage
+        const isDevModeStored = localStorage.getItem("chatchill-dev-mode") === "true"
+        if (isDevModeStored) {
+          const storedUser = localStorage.getItem("chatchill-dev-user")
+          const storedSession = localStorage.getItem("chatchill-dev-session")
+          const storedProfile = localStorage.getItem("chatchill-dev-profile")
+          
+          if (storedUser && storedSession && storedProfile) {
+            setUser(JSON.parse(storedUser))
+            setSession(JSON.parse(storedSession))
+            setProfile(JSON.parse(storedProfile))
+            setIsDevMode(true)
+            setIsLoading(false)
+            return
+          }
+        }
+
+        // If Supabase is not configured, skip authentication
+        if (!supabase) {
+          setIsLoading(false)
+          return
+        }
 
         const {
           data: { session },
@@ -117,47 +150,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getSession()
 
     // Set up auth state change listener
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state changed:", event)
+    let subscription: any = null
+    if (supabase) {
+      const {
+        data: { subscription: authSubscription },
+      } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log("Auth state changed:", event)
 
-      if (session) {
-        setSession(session)
-        setUser(session.user)
+        if (session) {
+          setSession(session)
+          setUser(session.user)
 
-        // Fetch user profile on auth change
-        const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", session.user.id)
-          .single()
+          // Fetch user profile on auth change
+          if (supabase) {
+            const { data: profileData, error: profileError } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", session.user.id)
+              .single()
 
-        if (profileError && profileError.code !== "PGRST116") {
-          console.error("Error fetching profile:", profileError)
+            if (profileError && profileError.code !== "PGRST116") {
+              console.error("Error fetching profile:", profileError)
+            }
+
+            if (profileData) {
+              setProfile(profileData as Profile)
+            }
+          }
+        } else {
+          setSession(null)
+          setUser(null)
+          setProfile(null)
         }
 
-        if (profileData) {
-          setProfile(profileData as Profile)
-        }
-      } else {
-        setSession(null)
-        setUser(null)
-        setProfile(null)
-      }
-
-      setIsLoading(false)
-    })
+        setIsLoading(false)
+      })
+      subscription = authSubscription
+    }
 
     // Cleanup subscription on unmount
     return () => {
-      subscription.unsubscribe()
+      if (subscription) {
+        subscription.unsubscribe()
+      }
     }
   }, [supabase])
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut()
+      if (isDevMode) {
+        // Clear dev mode from localStorage
+        localStorage.removeItem("chatchill-dev-mode")
+        localStorage.removeItem("chatchill-dev-user")
+        localStorage.removeItem("chatchill-dev-session")
+        localStorage.removeItem("chatchill-dev-profile")
+        setIsDevMode(false)
+      } else if (supabase) {
+        await supabase.auth.signOut()
+      }
       setUser(null)
       setSession(null)
       setProfile(null)
@@ -169,6 +219,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = async (data: ProfileUpdateData) => {
     if (!user) throw new Error("User not authenticated")
+    if (!supabase && !isDevMode) throw new Error("Supabase not configured")
+
+    if (isDevMode) {
+      // Update profile in dev mode
+      setProfile(prev => prev ? { ...prev, ...data, updated_at: new Date().toISOString() } : null)
+      return
+    }
 
     try {
       const { error } = await supabase.from("profiles").upsert({
@@ -195,8 +252,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const enableDevMode = () => {
+    // Create a mock user and session for development
+    const mockUser = {
+      id: "dev-user-123",
+      email: "dev@example.com",
+      user_metadata: {},
+      app_metadata: {},
+      aud: "authenticated",
+      created_at: new Date().toISOString(),
+    } as User
+
+    const mockSession = {
+      access_token: "dev-token",
+      refresh_token: "dev-refresh-token",
+      expires_in: 3600,
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      token_type: "bearer",
+      user: mockUser,
+    } as Session
+
+    const mockProfile = {
+      id: "dev-user-123",
+      username: "DevUser",
+      avatar_url: null,
+      instagram: null,
+      snapchat: null,
+      facebook: null,
+      discord: null,
+      country: "US",
+      is_vip: false,
+      subscription_date: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    } as Profile
+
+    setUser(mockUser)
+    setSession(mockSession)
+    setProfile(mockProfile)
+    setIsDevMode(true)
+    setIsLoading(false)
+    
+    // Store in localStorage so it persists across page reloads
+    localStorage.setItem("chatchill-dev-mode", "true")
+    localStorage.setItem("chatchill-dev-user", JSON.stringify(mockUser))
+    localStorage.setItem("chatchill-dev-session", JSON.stringify(mockSession))
+    localStorage.setItem("chatchill-dev-profile", JSON.stringify(mockProfile))
+  }
+
   return (
-    <AuthContext.Provider value={{ user, session, profile, isLoading, error, signOut, updateProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, isLoading, error, isDevMode, signOut, updateProfile, enableDevMode }}>
       {children}
     </AuthContext.Provider>
   )

@@ -1,11 +1,28 @@
 import { createClient } from "@supabase/supabase-js"
 
-// Create a single supabase client for the browser
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
-
-// Client-side Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Client-side Supabase client - handle missing configuration gracefully
+export const supabase = (() => {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    
+    console.log("Environment check:", {
+      hasUrl: !!supabaseUrl,
+      hasKey: !!supabaseAnonKey,
+      url: supabaseUrl?.substring(0, 30) + "...",
+      key: supabaseAnonKey?.substring(0, 20) + "..."
+    })
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.warn("Supabase configuration missing, running in demo mode")
+      return null
+    }
+    return createClient(supabaseUrl, supabaseAnonKey)
+  } catch (error) {
+    console.warn("Failed to create Supabase client:", error)
+    return null
+  }
+})()
 
 // Server-side Supabase client (for server components and API routes)
 export const createServerSupabaseClient = () => {
@@ -35,6 +52,10 @@ export async function recordVote(
   try {
     if (!userId || !targetUserId) {
       return { success: false, message: "User IDs are required" }
+    }
+
+    if (!supabase) {
+      return { success: false, message: "Supabase not configured - running in demo mode" }
     }
 
     // Check if a vote already exists
@@ -114,6 +135,15 @@ export async function getVoteCounts(userId: string): Promise<{
   message: string
 }> {
   try {
+    if (!supabase) {
+      return {
+        upvotes: 0,
+        downvotes: 0,
+        success: false,
+        message: "Supabase not configured - running in demo mode",
+      }
+    }
+
     // Get upvotes
     const { count: upvotes, error: upvoteError } = await supabase
       .from("votes")
@@ -176,6 +206,14 @@ export async function getUserVote(
   message: string
 }> {
   try {
+    if (!supabase) {
+      return {
+        hasVoted: false,
+        success: false,
+        message: "Supabase not configured - running in demo mode",
+      }
+    }
+
     const { data, error } = await supabase
       .from("votes")
       .select("vote_type")
