@@ -110,6 +110,8 @@ wss.on("connection", (ws) => {
         
         // Special handling for waiting room - implement pairing
         if (roomId === "waiting-room") {
+          console.log(`User ${userId} joining waiting room. Current users in room:`, Array.from(room))
+          
           // Check if user is in cooldown period (just left a room)
           const cooldownEnd = userCooldowns.get(userId)
           const now = Date.now()
@@ -132,10 +134,12 @@ wss.on("connection", (ws) => {
           
           // Get users already in waiting room (excluding current user)
           const usersInWaitingRoom = Array.from(room).filter((id) => id !== userId)
+          console.log(`Users in waiting room (excluding ${userId}):`, usersInWaitingRoom)
           
           // If there's another user waiting, pair them up
           if (usersInWaitingRoom.length >= 1) {
             const partnerId = usersInWaitingRoom[0] // Get the first waiting user
+            console.log(`Attempting to pair ${userId} with ${partnerId}`)
             
             // Verify partner is still available and not already paired
             const partnerData = clients.get(partnerId)
@@ -149,6 +153,19 @@ wss.on("connection", (ws) => {
                 users: [],
               }))
               console.log(`Partner ${partnerId} no longer available, ${userId} added to waiting room`)
+              return
+            }
+            
+            // Double-check that we're not trying to pair with ourselves
+            if (partnerId === userId) {
+              console.error(`ERROR: Attempting to pair ${userId} with themselves!`)
+              room.add(userId)
+              clients.set(userId, { ws, currentRoom: roomId })
+              ws.send(JSON.stringify({
+                type: "room-joined",
+                roomId,
+                users: [],
+              }))
               return
             }
             
@@ -179,7 +196,7 @@ wss.on("connection", (ws) => {
               partnerId: userId,
             }))
             
-            console.log(`Paired users ${userId} and ${partnerId} in room ${pairRoomId}`)
+            console.log(`✅ Successfully paired users ${userId} and ${partnerId} in room ${pairRoomId}`)
           } else {
             // No one else waiting, stay in waiting room
             room.add(userId)
@@ -189,6 +206,7 @@ wss.on("connection", (ws) => {
               roomId,
               users: [],
             }))
+            console.log(`User ${userId} added to waiting room, no partners available`)
           }
         } else {
           // Regular room handling

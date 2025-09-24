@@ -193,8 +193,8 @@ export class WebRTCClient {
         case "paired":
           console.log("Paired with user:", message.partnerId, "in room:", message.roomId)
           
-          // Prevent self-connections
-          if (message.partnerId !== this.userId) {
+          // Prevent self-connections with multiple checks
+          if (message.partnerId !== this.userId && message.partnerId && this.userId) {
             // Update room ID and create connection with partner
             this.roomId = message.roomId
             this.createPeerConnection(message.partnerId)
@@ -211,7 +211,12 @@ export class WebRTCClient {
               this.config.onUserJoined(message.partnerId)
             }
           } else {
-            console.log("Ignoring self-pairing attempt")
+            console.error("🚫 BLOCKED self-pairing attempt:", {
+              userId: this.userId,
+              partnerId: message.partnerId,
+              roomId: message.roomId
+            })
+            // Don't create any connection for self-pairing
           }
           break
 
@@ -315,6 +320,12 @@ export class WebRTCClient {
 
   // Create a peer connection for a specific user
   private createPeerConnection(peerId: string): RTCPeerConnection {
+    // Prevent self-connections
+    if (peerId === this.userId) {
+      console.error("🚫 BLOCKED: Attempted to create peer connection with self:", peerId)
+      throw new Error("Cannot create peer connection with self")
+    }
+    
     if (this.peerConnections.has(peerId)) {
       return this.peerConnections.get(peerId)!
     }
