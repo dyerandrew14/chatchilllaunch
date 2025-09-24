@@ -199,6 +199,7 @@ export default function HomePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
+  const [webrtcClient, setWebrtcClient] = useState<WebRTCClient | null>(null)
   
   // Computed value that checks both auth context and local state
   const isAuthenticated = isLoggedIn || (authUser && authProfile) || isDevMode
@@ -375,6 +376,9 @@ export default function HomePage() {
           addDebugLog(`WebRTC error: ${error.message}`)
         }
       })
+      
+      // Store the WebRTC client reference for later use
+      setWebrtcClient(webrtcClient)
       
       // Connect to signaling server and join room
       await webrtcClient.connect()
@@ -632,6 +636,19 @@ export default function HomePage() {
       return
     }
 
+    // Disconnect from current WebRTC room if connected
+    if (webrtcClient) {
+      try {
+        await webrtcClient.leaveRoom()
+        await webrtcClient.disconnect()
+        addDebugLog("Disconnected from current room to find next person")
+      } catch (error) {
+        console.error("Error disconnecting from current room:", error)
+        addDebugLog(`Error disconnecting: ${error.message}`)
+      }
+      setWebrtcClient(null)
+    }
+
     // Reset state
     setMessages([])
     setInviteFriendId(null)
@@ -649,14 +666,27 @@ export default function HomePage() {
 
     // Start a new chat
     await startChat()
-  }, [isAuthenticated, currentLobby, addMessage, startChat, addDebugLog])
+  }, [isAuthenticated, currentLobby, addMessage, startChat, addDebugLog, webrtcClient])
 
-  // Stop the chat - MODIFIED to just stop searching but keep showing yourself
+  // Stop the chat - MODIFIED to properly disconnect from WebRTC room
   const stopChat = useCallback(async () => {
     // Clear any existing search timeout
     if (searchTimeoutRef.current) {
       clearInterval(searchTimeoutRef.current)
       searchTimeoutRef.current = null
+    }
+
+    // Disconnect from WebRTC room if connected
+    if (webrtcClient) {
+      try {
+        await webrtcClient.leaveRoom()
+        await webrtcClient.disconnect()
+        addDebugLog("Disconnected from WebRTC room")
+      } catch (error) {
+        console.error("Error disconnecting from WebRTC:", error)
+        addDebugLog(`Error disconnecting: ${error.message}`)
+      }
+      setWebrtcClient(null)
     }
 
     // Update state - FIXED: Reset isConnecting to false
@@ -670,7 +700,7 @@ export default function HomePage() {
 
     // Show a message that we've stopped searching
     addMessage("Stopped searching. Click Start to begin looking for someone new.", "stranger", "System")
-  }, [addDebugLog, addMessage])
+  }, [webrtcClient, addDebugLog, addMessage])
 
   // Add a setupLocalCamera function to the main component
   const setupLocalCamera = useCallback(async () => {
