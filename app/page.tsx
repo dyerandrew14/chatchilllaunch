@@ -1885,83 +1885,71 @@ export default function HomePage() {
                 </Button>
               </div>
 
-              {/* Secondary controls - scrollable on mobile */}
-              <div className={`${isMobile ? 'overflow-x-auto' : 'grid grid-cols-2 gap-2'} p-2 pt-0`}>
-                <div className={`${isMobile ? 'flex gap-2 min-w-max' : 'contents'}`}>
-                  <Button
-                    variant="outline"
-                    className={`h-12 bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-white border-gray-600 ${isMobile ? "border-0 whitespace-nowrap" : ""}`}
-                    onClick={handleCountrySelect}
-                  >
-                    <span className="text-xl mr-2">{selectedCountry.flag}</span>
-                    <span>Country</span>
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
+              {/* Secondary controls - mobile optimized */}
+              <div className={`${isMobile ? 'grid grid-cols-3 gap-1 px-2 pb-2' : 'grid grid-cols-2 gap-2'} p-2 pt-0`}>
+                <Button
+                  variant="outline"
+                  className={`${isMobile ? 'h-10 text-sm' : 'h-12'} bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-white border-gray-600 ${isMobile ? "border-0" : ""}`}
+                  onClick={handleCountrySelect}
+                >
+                  <span className="text-lg mr-1">{selectedCountry.flag}</span>
+                  <span className={isMobile ? "text-xs" : ""}>Country</span>
+                  <ChevronDown className="ml-1 h-3 w-3" />
+                </Button>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={`h-12 bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-white ${isMobile ? "border-0 whitespace-nowrap" : ""}`}
-                      >
-                        {selectedGender === "male" ? (
-                          <Male className="mr-2 h-5 w-5 text-blue-400" />
-                        ) : selectedGender === "female" ? (
-                          <Female className="mr-2 h-5 w-5 text-pink-400" />
-                        ) : (
-                          <Users2 className="mr-2 h-5 w-5 text-purple-400" />
-                        )}
-                        <span>I am</span>
-                        <ChevronDown className="ml-2 h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-gray-800 border-gray-700 text-white">
-                      <DropdownMenuItem
-                        onClick={() => setSelectedGender("male")}
-                        className="flex items-center gap-3 cursor-pointer hover:bg-gray-700"
-                      >
-                        <Male className="h-5 w-5 text-blue-400" />
-                        <span>Male</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setSelectedGender("female")}
-                        className="flex items-center gap-3 cursor-pointer hover:bg-gray-700"
-                      >
-                        <Female className="h-5 w-5 text-pink-400" />
-                        <span>Female</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setSelectedGender("any")}
-                        className="flex items-center gap-3 cursor-pointer hover:bg-gray-700"
-                      >
-                        <Users2 className="h-5 w-5 text-purple-400" />
-                        <span>Any</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={`${isMobile ? 'h-10 text-sm' : 'h-12'} bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-white ${isMobile ? "border-0" : ""}`}
+                    >
+                      {selectedGender === "male" ? (
+                        <Male className="mr-1 h-4 w-4 text-blue-400" />
+                      ) : selectedGender === "female" ? (
+                        <Female className="mr-1 h-4 w-4 text-pink-400" />
+                      ) : (
+                        <Users2 className="mr-1 h-4 w-4 text-purple-400" />
+                      )}
+                      <span className={isMobile ? "text-xs" : ""}>I am</span>
+                      <ChevronDown className="ml-1 h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-gray-800 border-gray-700 text-white">
+                    <DropdownMenuItem
+                      onClick={() => setSelectedGender("male")}
+                      className="flex items-center gap-3 cursor-pointer hover:bg-gray-700"
+                    >
+                      <Male className="h-5 w-5 text-blue-400" />
+                      <span>Male</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setSelectedGender("female")}
+                      className="flex items-center gap-3 cursor-pointer hover:bg-gray-700"
+                    >
+                      <Female className="h-5 w-5 text-pink-400" />
+                      <span>Female</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setSelectedGender("any")}
+                      className="flex items-center gap-3 cursor-pointer hover:bg-gray-700"
+                    >
+                      <Users2 className="h-5 w-5 text-purple-400" />
+                      <span>Any</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-                  <Button
-                    variant={showFriendsList ? "default" : "outline"}
-                    className={`h-12 ${showFriendsList ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-800 hover:bg-gray-700"} flex items-center justify-center text-white ${isMobile ? "border-0 whitespace-nowrap" : ""}`}
-                    onClick={toggleFriendsList}
-                  >
-                    <Users className="mr-2 h-5 w-5" />
-                    <span>Friends</span>
-                    <span className="ml-2">
-                      {showFriendsList ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </span>
-                  </Button>
-
-                  <Button
-                    variant={showMusicPlayer ? "default" : "outline"}
-                    className={`h-12 ${showMusicPlayer ? "bg-green-600 hover:bg-green-700" : "bg-gray-800 hover:bg-gray-700"} flex items-center justify-center text-white ${isMobile ? "border-0 whitespace-nowrap" : ""}`}
-                    onClick={() => setShowMusicPlayer(true)}
-                  >
-                    <Music className="mr-2 h-5 w-5" />
-                    <span>Music</span>
-                    {user?.isVIP ? null : <span className="ml-1 text-xs text-gray-400">({freeSongsRemaining} free)</span>}
-                  </Button>
-                </div>
+                <Button
+                  variant={showFriendsList ? "default" : "outline"}
+                  className={`${isMobile ? 'h-10 text-sm' : 'h-12'} ${showFriendsList ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-800 hover:bg-gray-700"} flex items-center justify-center text-white ${isMobile ? "border-0" : ""}`}
+                  onClick={toggleFriendsList}
+                >
+                  <Users className="mr-1 h-4 w-4" />
+                  <span className={isMobile ? "text-xs" : ""}>Friends</span>
+                  <span className="ml-1">
+                    {showFriendsList ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </span>
+                </Button>
               </div>
             </div>
           </div>
