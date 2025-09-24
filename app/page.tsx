@@ -1826,11 +1826,12 @@ export default function HomePage() {
                   </div>
                 )}
 
-                {/* Current lobby indicator - clickable */}
-                <button
-                  onClick={openInterestSelector}
-                  className="absolute top-4 left-4 z-20 bg-black/50 hover:bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full transition-colors"
-                >
+                {/* Current lobby indicator - clickable - DESKTOP ONLY */}
+                {!isMobile && (
+                  <button
+                    onClick={openInterestSelector}
+                    className="absolute top-4 left-4 z-20 bg-black/50 hover:bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full transition-colors"
+                  >
                   <div className="flex items-center gap-2">
                     {currentLobby === "General" && <Compass className="h-4 w-4 text-blue-400" />}
                     {currentLobby === "Gaming" && <Gamepad2 className="h-4 w-4 text-green-400" />}
@@ -1842,7 +1843,8 @@ export default function HomePage() {
                     {currentLobby === "Speed Dating" && <Heart className="h-4 w-4 text-pink-500" />}
                     <span className="text-sm font-medium">{currentLobby} Lobby</span>
                   </div>
-                </button>
+                  </button>
+                )}
 
                 {/* User level indicator */}
                 {user?.reputation && (
