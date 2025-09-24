@@ -1670,7 +1670,7 @@ export default function HomePage() {
 
         {/* Fixed header with menu buttons - MOBILE ONLY */}
         {isMobile && (
-          <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between p-2 bg-black/50 backdrop-blur-sm">
+          <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between p-2">
             <div className="flex items-center">
               <Image src="/images/logo.png" alt="ChatChill Logo" width={200} height={80} className="h-24 w-auto" />
             </div>
