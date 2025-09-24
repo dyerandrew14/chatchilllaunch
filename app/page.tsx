@@ -714,17 +714,26 @@ export default function HomePage() {
       setWebrtcClient(null)
     }
 
-    // Update state - FIXED: Reset isConnecting to false
+    // Reset all chat-related state
     setIsConnected(false)
     setIsConnecting(false)
     setIsSearchingForStranger(false)
     setHasStrangerVideo(false)
     setRemoteUsers([])
-    setRemoteStream(null) // FIXED: Clear remote video stream when stopping
-    addDebugLog("Chat stopped, but camera still active")
+    setRemoteStream(null)
+    setMessages([])
+    setShowUserProfile(false)
+    setInviteFriendId(null)
+    setErrorMessage(null)
+    
+    // Return to interest selection screen
+    setShowWaitingScreen(true)
+    setShowInterestSelector(true)
+    
+    addDebugLog("Chat stopped, returned to interest selection")
 
     // Show a message that we've stopped searching
-    addMessage("Stopped searching. Click Start to begin looking for someone new.", "stranger", "System")
+    addMessage("Stopped searching. Select an interest to begin looking for someone new.", "stranger", "System")
   }, [webrtcClient, addDebugLog, addMessage])
 
   // Add a setupLocalCamera function to the main component
@@ -1768,7 +1777,11 @@ export default function HomePage() {
                           Finding next person in {currentLobby} lobby...
                         </p>
                         <p className="text-gray-400 mb-4">This may take a moment</p>
-                        <Button variant="outline" onClick={stopChat}>
+                        <Button 
+                          variant="destructive" 
+                          onClick={stopChat}
+                          className="bg-red-500 hover:bg-red-600 text-white"
+                        >
                           Cancel
                         </Button>
                       </div>
@@ -1870,7 +1883,7 @@ export default function HomePage() {
 
                 <Button
                   variant="outline"
-                  className={`h-12 bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-white ${isMobile ? "border-0" : ""}`}
+                  className={`h-12 bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-white border-gray-600 ${isMobile ? "border-0" : ""}`}
                   onClick={handleCountrySelect}
                 >
                   <span className="text-xl mr-2">{selectedCountry.flag}</span>
