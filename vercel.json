@@ -1,16 +1,7 @@
 {
-  "functions": {
-    "server/signaling-server.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "env": {
-    "NEXT_PUBLIC_SIGNALING_SERVER_URL": "@signaling_server_url"
-  },
-  "build": {
-    "env": {
-      "NEXT_PUBLIC_SUPABASE_URL": "@supabase_url",
-      "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key"
-    }
+    "NEXT_PUBLIC_SIGNALING_SERVER_URL": "wss://chatchilllaunch.onrender.com",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://cjacjtmujtsofrmrrxml.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqYWNqdG11anRzb2ZybXJyeG1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NzI1OTYsImV4cCI6MjA3NDI0ODU5Nn0._-ZPhmwBnXv8iOfiEwJwP2mUP-IMXNV5q983omBpi2s"
   }
 }
