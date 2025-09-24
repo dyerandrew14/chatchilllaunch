@@ -551,13 +551,23 @@ export default function HomePage() {
       await joinVideoChat(roomId)
       console.log("✅ WebRTC connection established")
       
+      // Set a timeout for when no one is available (30 seconds)
+      setTimeout(() => {
+        if (isConnecting && !isConnected) {
+          console.log("⏰ No one available after 30 seconds")
+          addMessage("No one is currently available. Try again later or invite a friend!", "stranger", "System")
+          setIsConnecting(false)
+          setIsSearchingForStranger(false)
+        }
+      }, 30000)
+      
     } catch (error) {
       console.error("❌ Error in startChat:", error)
       setIsConnecting(false)
       setIsSearchingForStranger(false)
       setRemoteStream(null) // Clear remote stream on error too
     }
-  }, [joinVideoChat])
+  }, [joinVideoChat, isConnecting, isConnected, addMessage])
 
   // Update the handleStartChat function to check for video before starting - DEFINE THIS SECOND
   const handleStartChat = useCallback(
@@ -740,7 +750,7 @@ export default function HomePage() {
     addDebugLog("Chat stopped, returned to waiting screen")
 
     // Show a message that we've stopped searching
-    addMessage("Stopped searching. Click Start to begin looking for someone new.", "stranger", "System")
+    addMessage("Click Start to begin looking for someone new.", "stranger", "System")
   }, [webrtcClient, addDebugLog, addMessage, localStream])
 
   // Add a setupLocalCamera function to the main component
@@ -1172,8 +1182,10 @@ export default function HomePage() {
         setShowInterestSelector(true)
       }
     } else {
-      // Only show the selector if we don't have a saved interest
-      setShowInterestSelector(true)
+      // Only show the selector if we don't have a saved interest AND we're not in a chat state
+      if (!isConnecting && !isConnected && !showWaitingScreen) {
+        setShowInterestSelector(true)
+      }
     }
     setInitialInterestLoaded(true)
   }, []) // Empty dependency array means this runs once on mount
