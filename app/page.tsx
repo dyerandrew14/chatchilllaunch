@@ -566,7 +566,8 @@ export default function HomePage() {
           console.log("⏰ No one available after 2 minutes")
           addMessage("No one is currently available. Try again later or invite a friend!", "stranger", "System")
           setIsConnecting(false)
-          setIsSearchingForStranger(false)
+          // Keep searching state active - don't set isSearchingForStranger to false
+          // This allows the user to keep trying
         }
       }, 120000)
       
@@ -1686,44 +1687,44 @@ export default function HomePage() {
         )}
 
         {/* Compact mobile header with logo and buttons */}
-        {isMobile && (
-          <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between p-1 bg-black/20 backdrop-blur-sm">
-            <div className="flex items-center">
-              <Image src="/images/logo.png" alt="ChatChill Logo" width={120} height={48} className="h-12 w-auto" />
-            </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full border-0 bg-black/30 hover:bg-black/50"
-                onClick={() => setShowChat(!showChat)}
-              >
-                <MessageSquare className="h-4 w-4 text-white" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`h-8 w-8 rounded-full border-0 ${user?.isVIP ? "bg-yellow-500 text-black" : "bg-black/30 hover:bg-black/50"}`}
-                onClick={() => setIsVipPopupOpen(true)}
-              >
-                <Crown className={`h-4 w-4 ${user?.isVIP ? "text-black" : "text-yellow-500"}`} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full border-0 bg-black/30 hover:bg-black/50"
-                onClick={() => setIsSidebarOpen(true)}
-              >
-                <Menu className="h-4 w-4 text-white" />
-              </Button>
-            </div>
-          </div>
-        )}
+            {isMobile && (
+              <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between p-2">
+                <div className="flex items-center">
+                  <Image src="/images/logo.png" alt="ChatChill Logo" width={160} height={64} className="h-16 w-auto" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 rounded-full border-0 bg-black/30 hover:bg-black/50"
+                    onClick={() => setShowChat(!showChat)}
+                  >
+                    <MessageSquare className="h-5 w-5 text-white" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-10 w-10 rounded-full border-0 ${user?.isVIP ? "bg-yellow-500 text-black" : "bg-black/30 hover:bg-black/50"}`}
+                    onClick={() => setIsVipPopupOpen(true)}
+                  >
+                    <Crown className={`h-5 w-5 ${user?.isVIP ? "text-black" : "text-yellow-500"}`} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 rounded-full border-0 bg-black/30 hover:bg-black/50"
+                    onClick={() => setIsSidebarOpen(true)}
+                  >
+                    <Menu className="h-5 w-5 text-white" />
+                  </Button>
+                </div>
+              </div>
+            )}
 
         {/* Main content area - videos and chat */}
         <div className="flex flex-1">
           {/* Videos container - left side */}
-          <div className={`flex flex-col ${isMobile ? "w-full pt-14" : showChat ? "w-[calc(100%-320px)]" : "w-full"}`}>
+          <div className={`flex flex-col ${isMobile ? "w-full pt-20" : showChat ? "w-[calc(100%-320px)]" : "w-full"}`}>
             {/* Videos row - column on mobile */}
             <div className="flex flex-col md:flex-row flex-1">
               {/* Stranger video - top on mobile, left on desktop */}
@@ -1791,15 +1792,15 @@ export default function HomePage() {
                       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm">
                         <Loader2 className="h-12 w-12 animate-spin text-yellow-500 mb-4" />
                         <p className="text-xl font-medium text-white mb-2">
-                          Finding next person in {currentLobby} lobby...
+                          Searching for someone in {currentLobby} lobby...
                         </p>
-                        <p className="text-gray-400 mb-4">This may take a moment</p>
+                        <p className="text-gray-400 mb-4">Keep waiting - someone will join soon!</p>
                         <Button 
                           variant="destructive" 
                           onClick={stopChat}
                           className="bg-red-500 hover:bg-red-600 text-white"
                         >
-                          Cancel
+                          Stop Searching
                         </Button>
                       </div>
                     )}
