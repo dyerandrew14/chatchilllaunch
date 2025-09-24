@@ -363,7 +363,7 @@ export class WebRTCClient {
 
     // Handle connection state changes
     pc.onconnectionstatechange = () => {
-      console.log(`Connection state with ${peerId}:`, pc.connectionState)
+      console.log(`🔗 Connection state with ${peerId}:`, pc.connectionState)
       if (this.config.onConnectionStateChange) {
         this.config.onConnectionStateChange(pc.connectionState)
       }

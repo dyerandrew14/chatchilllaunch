@@ -347,7 +347,7 @@ export default function HomePage() {
       const { WebRTCClient } = await import("@/lib/webrtc-client")
       
       // Get signaling server URL from environment
-      const signalingServerUrl = "wss://chatchilllaunch.onrender.com"
+      const signalingServerUrl = "ws://localhost:8080"
       
       // Generate a unique user ID
       const userId = `user_${Math.random().toString(36).substring(2, 15)}`
@@ -363,13 +363,22 @@ export default function HomePage() {
         onConnectionStateChange: (state) => {
           console.log("🔗 CONNECTION STATE CHANGED:", state)
           addDebugLog(`Connection state changed: ${state}`)
-          if (state === "connected") {
+          if (state === "connected" && !isConnected) {
             console.log("✅ CONNECTED! Updating UI state")
-        setIsConnected(true)
-        setIsSearchingForStranger(false)
-        setIsConnecting(false)
+            setIsConnected(true)
+            setIsSearchingForStranger(false)
+            setIsConnecting(false)
             addMessage("Connected to another user!", "stranger", "System")
           }
+        },
+        onUserJoined: (userId) => {
+          console.log("👤 USER JOINED:", userId)
+          addDebugLog(`User joined: ${userId}`)
+          // Don't add message here - let connection state handle it
+        },
+        onUserLeft: (userId) => {
+          console.log("👤 USER LEFT:", userId)
+          addDebugLog(`User left: ${userId}`)
         },
         onError: (error) => {
           console.error("WebRTC error:", error)
