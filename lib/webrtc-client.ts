@@ -36,14 +36,18 @@ export class WebRTCClient {
         this.socket.onopen = () => {
           console.log("Connected to signaling server")
 
-          // Small delay to ensure connection is fully ready
+          // Wait for WebSocket to be fully ready before sending messages
           setTimeout(() => {
-            // Register with the signaling server
-            this.sendToSignalingServer({
-              type: "register",
-              userId: this.userId,
-            })
-          }, 100)
+            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+              // Register with the signaling server
+              this.sendToSignalingServer({
+                type: "register",
+                userId: this.userId,
+              })
+            } else {
+              console.warn("WebSocket not ready, skipping registration")
+            }
+          }, 500) // Increased delay to ensure connection is stable
 
           resolve()
         }
@@ -191,10 +195,25 @@ export class WebRTCClient {
   // Join a room
   public joinRoom(roomId: string): void {
     this.roomId = roomId
-    this.sendToSignalingServer({
-      type: "join",
-      roomId,
-    })
+    
+    // Ensure we're connected before joining
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.sendToSignalingServer({
+        type: "join",
+        roomId,
+      })
+    } else {
+      console.warn("Cannot join room: WebSocket not ready, state:", this.socket?.readyState)
+      // Wait a bit and try again
+      setTimeout(() => {
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+          this.sendToSignalingServer({
+            type: "join",
+            roomId,
+          })
+        }
+      }, 1000)
+    }
   }
 
   // Leave the current room
