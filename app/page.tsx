@@ -441,6 +441,10 @@ export default function HomePage() {
                 if (videoTrack) {
                   videoTrack.enabled = !videoTrack.enabled
                   setIsVideoOn(videoTrack.enabled)
+                  // Also update WebRTC client state
+                  if (webrtcClient) {
+                    webrtcClient.toggleVideo(videoTrack.enabled)
+                  }
                 }
               }
             }}
@@ -457,6 +461,10 @@ export default function HomePage() {
                 if (audioTrack) {
                   audioTrack.enabled = !audioTrack.enabled
                   setIsAudioOn(audioTrack.enabled)
+                  // Also update WebRTC client state
+                  if (webrtcClient) {
+                    webrtcClient.toggleAudio(audioTrack.enabled)
+                  }
                 }
               }
             }}
