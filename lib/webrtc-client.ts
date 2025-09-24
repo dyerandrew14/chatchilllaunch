@@ -131,16 +131,29 @@ export class WebRTCClient {
           // Create peer connections with existing users
           for (const peerId of message.users) {
             this.createPeerConnection(peerId)
-            // Create and send offer to each user
-            this.createAndSendOffer(peerId)
+            
+            // Only the user with higher ID creates the offer to avoid conflicts
+            if (this.userId > peerId) {
+              console.log("Creating offer (higher ID):", this.userId, "vs", peerId)
+              this.createAndSendOffer(peerId)
+            } else {
+              console.log("Waiting for offer (lower ID):", this.userId, "vs", peerId)
+            }
           }
           break
 
         case "user-joined":
           console.log("User joined room:", message.userId)
-          // Create peer connection with the new user and send offer
+          // Create peer connection with the new user
           this.createPeerConnection(message.userId)
-          this.createAndSendOffer(message.userId)
+          
+          // Only the user with higher ID creates the offer to avoid conflicts
+          if (this.userId > message.userId) {
+            console.log("Creating offer (higher ID):", this.userId, "vs", message.userId)
+            this.createAndSendOffer(message.userId)
+          } else {
+            console.log("Waiting for offer (lower ID):", this.userId, "vs", message.userId)
+          }
           
           if (this.config.onUserJoined) {
             this.config.onUserJoined(message.userId)
@@ -356,6 +369,12 @@ export class WebRTCClient {
       const peerId = message.senderId
       const pc = this.createPeerConnection(peerId)
 
+      // Check if we're in the right state to handle an offer
+      if (pc.signalingState !== "stable" && pc.signalingState !== "have-local-offer") {
+        console.warn("Cannot handle offer: peer connection in state", pc.signalingState)
+        return
+      }
+
       await pc.setRemoteDescription(
         new RTCSessionDescription({
           type: "offer",
@@ -387,6 +406,12 @@ export class WebRTCClient {
       const pc = this.peerConnections.get(peerId)
 
       if (pc) {
+        // Check if we're in the right state to handle an answer
+        if (pc.signalingState !== "have-local-offer" && pc.signalingState !== "have-remote-pranswer") {
+          console.warn("Cannot handle answer: peer connection in state", pc.signalingState)
+          return
+        }
+
         await pc.setRemoteDescription(
           new RTCSessionDescription({
             type: "answer",
