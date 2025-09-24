@@ -714,6 +714,13 @@ export default function HomePage() {
       setWebrtcClient(null)
     }
 
+    // Stop local camera stream
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop())
+      setLocalStream(null)
+      setHasPublishedVideo(false)
+    }
+
     // Reset all chat-related state
     setIsConnected(false)
     setIsConnecting(false)
@@ -726,15 +733,15 @@ export default function HomePage() {
     setInviteFriendId(null)
     setErrorMessage(null)
     
-    // Return to interest selection screen
+    // Return to waiting screen but DON'T show interest selector
     setShowWaitingScreen(true)
-    setShowInterestSelector(true)
+    setShowInterestSelector(false) // FIXED: Don't show lobby selection
     
-    addDebugLog("Chat stopped, returned to interest selection")
+    addDebugLog("Chat stopped, returned to waiting screen")
 
     // Show a message that we've stopped searching
-    addMessage("Stopped searching. Select an interest to begin looking for someone new.", "stranger", "System")
-  }, [webrtcClient, addDebugLog, addMessage])
+    addMessage("Stopped searching. Click Start to begin looking for someone new.", "stranger", "System")
+  }, [webrtcClient, addDebugLog, addMessage, localStream])
 
   // Add a setupLocalCamera function to the main component
   const setupLocalCamera = useCallback(async () => {
@@ -1886,7 +1893,7 @@ export default function HomePage() {
               </div>
 
               {/* Secondary controls - mobile optimized */}
-              <div className={`${isMobile ? 'grid grid-cols-3 gap-1 px-2 pb-2' : 'grid grid-cols-2 gap-2'} p-2 pt-0`}>
+              <div className={`${isMobile ? 'grid grid-cols-3 gap-1 px-2 pb-2' : 'grid grid-cols-3 gap-2'} p-2 pt-0`}>
                 <Button
                   variant="outline"
                   className={`${isMobile ? 'h-10 text-sm' : 'h-12'} bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-white border-gray-600 ${isMobile ? "border-0" : ""}`}
