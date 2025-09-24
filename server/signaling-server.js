@@ -27,6 +27,7 @@ const wss = new WebSocket.Server({ server })
 // Store active connections
 const clients = new Map()
 const rooms = new Map()
+const userCooldowns = new Map() // userId -> timestamp when they can join waiting room again
 
 // Start the server
 server.listen(PORT, () => {
@@ -34,9 +35,17 @@ server.listen(PORT, () => {
   console.log(`Health check available at http://localhost:${PORT}/health`)
 })
 
-// Keep server awake with periodic health checks
+// Keep server awake with periodic health checks and cleanup
 setInterval(() => {
   console.log(`Server status: ${clients.size} clients, ${rooms.size} rooms`)
+  
+  // Clean up expired cooldowns
+  const now = Date.now()
+  for (const [userId, cooldownEnd] of userCooldowns.entries()) {
+    if (now >= cooldownEnd) {
+      userCooldowns.delete(userId)
+    }
+  }
 }, 30000) // Log every 30 seconds
 
 wss.on("connection", (ws) => {
@@ -100,6 +109,24 @@ wss.on("connection", (ws) => {
 
         // Special handling for waiting room - implement pairing
         if (roomId === "waiting-room") {
+          // Check if user is in cooldown period (just left a room)
+          const cooldownEnd = userCooldowns.get(userId)
+          const now = Date.now()
+          
+          if (cooldownEnd && now < cooldownEnd) {
+            // User is in cooldown, just add them to waiting room without pairing
+            ws.send(JSON.stringify({
+              type: "room-joined",
+              roomId,
+              users: [],
+            }))
+            console.log(`User ${userId} in cooldown until ${new Date(cooldownEnd)}`)
+            return
+          }
+          
+          // Remove cooldown if it exists
+          userCooldowns.delete(userId)
+          
           const usersInWaitingRoom = Array.from(room).filter((id) => id !== userId)
           
           // If there's another user waiting, pair them up
@@ -175,6 +202,13 @@ wss.on("connection", (ws) => {
         if (roomId === currentRoom && rooms.has(roomId)) {
           const room = rooms.get(roomId)
           room.delete(userId)
+
+          // If leaving a paired room, add cooldown to prevent immediate re-pairing
+          if (roomId.startsWith("pair_")) {
+            const cooldownDuration = 3000 // 3 seconds cooldown
+            userCooldowns.set(userId, Date.now() + cooldownDuration)
+            console.log(`User ${userId} left paired room ${roomId}, cooldown until ${new Date(Date.now() + cooldownDuration)}`)
+          }
 
           if (room.size === 0) {
             rooms.delete(roomId)
@@ -272,9 +306,10 @@ wss.on("connection", (ws) => {
       }
     }
 
-    // Remove from clients list
+    // Remove from clients list and cooldowns
     if (userId) {
       clients.delete(userId)
+      userCooldowns.delete(userId) // Clean up cooldown if user disconnects
     }
   })
 
