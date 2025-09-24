@@ -365,9 +365,9 @@ export default function HomePage() {
           addDebugLog(`Connection state changed: ${state}`)
           if (state === "connected" && !isConnected) {
             console.log("✅ CONNECTED! Updating UI state")
-            setIsConnected(true)
-            setIsSearchingForStranger(false)
-            setIsConnecting(false)
+        setIsConnected(true)
+        setIsSearchingForStranger(false)
+        setIsConnecting(false)
             addMessage("Connected to another user!", "stranger", "System")
           }
         },
@@ -1182,7 +1182,7 @@ export default function HomePage() {
     } else {
       // Only show the selector if we don't have a saved interest AND we're not in a chat state
       if (!isConnecting && !isConnected && !showWaitingScreen) {
-        setShowInterestSelector(true)
+      setShowInterestSelector(true)
       }
     }
     setInitialInterestLoaded(true)
@@ -1685,11 +1685,45 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* Compact mobile header with logo and buttons */}
+        {isMobile && (
+          <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between p-1 bg-black/20 backdrop-blur-sm">
+            <div className="flex items-center">
+              <Image src="/images/logo.png" alt="ChatChill Logo" width={120} height={48} className="h-12 w-auto" />
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full border-0 bg-black/30 hover:bg-black/50"
+                onClick={() => setShowChat(!showChat)}
+              >
+                <MessageSquare className="h-4 w-4 text-white" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`h-8 w-8 rounded-full border-0 ${user?.isVIP ? "bg-yellow-500 text-black" : "bg-black/30 hover:bg-black/50"}`}
+                onClick={() => setIsVipPopupOpen(true)}
+              >
+                <Crown className={`h-4 w-4 ${user?.isVIP ? "text-black" : "text-yellow-500"}`} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full border-0 bg-black/30 hover:bg-black/50"
+                onClick={() => setIsSidebarOpen(true)}
+              >
+                <Menu className="h-4 w-4 text-white" />
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Main content area - videos and chat */}
         <div className="flex flex-1">
           {/* Videos container - left side */}
-          <div className={`flex flex-col ${isMobile ? "w-full" : showChat ? "w-[calc(100%-320px)]" : "w-full"}`}>
+          <div className={`flex flex-col ${isMobile ? "w-full pt-14" : showChat ? "w-[calc(100%-320px)]" : "w-full"}`}>
             {/* Videos row - column on mobile */}
             <div className="flex flex-col md:flex-row flex-1">
               {/* Stranger video - top on mobile, left on desktop */}
@@ -1811,10 +1845,10 @@ export default function HomePage() {
 
                 {/* Current lobby indicator - clickable - DESKTOP ONLY */}
                 {!isMobile && (
-                  <button
-                    onClick={openInterestSelector}
-                    className="absolute top-4 left-4 z-20 bg-black/50 hover:bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full transition-colors"
-                  >
+                <button
+                  onClick={openInterestSelector}
+                  className="absolute top-4 left-4 z-20 bg-black/50 hover:bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full transition-colors"
+                >
                   <div className="flex items-center gap-2">
                     {currentLobby === "General" && <Compass className="h-4 w-4 text-blue-400" />}
                     {currentLobby === "Gaming" && <Gamepad2 className="h-4 w-4 text-green-400" />}
@@ -1826,7 +1860,7 @@ export default function HomePage() {
                     {currentLobby === "Speed Dating" && <Heart className="h-4 w-4 text-pink-500" />}
                     <span className="text-sm font-medium">{currentLobby} Lobby</span>
                   </div>
-                  </button>
+                </button>
                 )}
 
                 {/* User level indicator */}
@@ -1872,14 +1906,14 @@ export default function HomePage() {
               <div className={`${isMobile ? 'grid grid-cols-3 gap-1 px-2 pb-2' : 'grid grid-cols-3 gap-2'} p-2 pt-0`}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
+                <Button
+                  variant="outline"
                       className={`${isMobile ? 'h-10 text-sm' : 'h-12'} bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-white border-gray-600 ${isMobile ? "border-0" : ""}`}
                     >
                       <span className="text-lg mr-1">{selectedCountry.flag}</span>
                       <span className={isMobile ? "text-xs" : ""}>Country</span>
                       <ChevronDown className="ml-1 h-3 w-3" />
-                    </Button>
+                </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="bg-gray-800 border-gray-700 text-white max-h-60 overflow-y-auto">
                     {COUNTRIES.map((country) => (
