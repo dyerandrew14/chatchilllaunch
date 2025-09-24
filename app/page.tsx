@@ -1696,45 +1696,11 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Fixed header with menu buttons - MOBILE ONLY */}
-        {isMobile && (
-          <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between p-2">
-            <div className="flex items-center">
-              <Image src="/images/logo.png" alt="ChatChill Logo" width={200} height={80} className="h-24 w-auto" />
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 rounded-full border-0"
-                onClick={() => setShowChat(!showChat)}
-              >
-                <MessageSquare className="h-5 w-5 text-white" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`h-10 w-10 rounded-full border-0 ${user?.isVIP ? "bg-yellow-500 text-black" : "bg-black/30 hover:bg-black/50"}`}
-                onClick={() => setIsVipPopupOpen(true)}
-              >
-                <Crown className={`h-5 w-5 ${user?.isVIP ? "text-black" : "text-yellow-500"}`} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 rounded-full border-0 bg-black/30 hover:bg-black/50"
-                onClick={() => setIsSidebarOpen(true)}
-              >
-                <Menu className="h-5 w-5 text-white" />
-              </Button>
-            </div>
-          </div>
-        )}
 
         {/* Main content area - videos and chat */}
         <div className="flex flex-1">
           {/* Videos container - left side */}
-          <div className={`flex flex-col ${isMobile ? "w-full pt-14" : showChat ? "w-[calc(100%-320px)]" : "w-full"}`}>
+          <div className={`flex flex-col ${isMobile ? "w-full" : showChat ? "w-[calc(100%-320px)]" : "w-full"}`}>
             {/* Videos row - column on mobile */}
             <div className="flex flex-col md:flex-row flex-1">
               {/* Stranger video - top on mobile, left on desktop */}
