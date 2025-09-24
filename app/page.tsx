@@ -560,15 +560,15 @@ export default function HomePage() {
       await joinVideoChat(roomId)
       console.log("✅ WebRTC connection established")
       
-      // Set a timeout for when no one is available (30 seconds)
+      // Set a timeout for when no one is available (2 minutes)
       setTimeout(() => {
         if (isConnecting && !isConnected) {
-          console.log("⏰ No one available after 30 seconds")
+          console.log("⏰ No one available after 2 minutes")
           addMessage("No one is currently available. Try again later or invite a friend!", "stranger", "System")
           setIsConnecting(false)
           setIsSearchingForStranger(false)
         }
-      }, 30000)
+      }, 120000)
       
     } catch (error) {
       console.error("❌ Error in startChat:", error)
@@ -1906,26 +1906,24 @@ export default function HomePage() {
               <div className={`${isMobile ? 'grid grid-cols-3 gap-1 px-2 pb-2' : 'grid grid-cols-3 gap-2'} p-2 pt-0`}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
+                    <Button
+                      variant="outline"
                       className={`${isMobile ? 'h-10 text-sm' : 'h-12'} bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-white border-gray-600 ${isMobile ? "border-0" : ""}`}
                     >
                       <span className="text-lg mr-1">{selectedCountry.flag}</span>
                       <span className={isMobile ? "text-xs" : ""}>Country</span>
                       <ChevronDown className="ml-1 h-3 w-3" />
-                </Button>
+                    </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="bg-gray-800 border-gray-700 text-white max-h-60 overflow-y-auto">
-                    {COUNTRIES.map((country) => (
-                      <DropdownMenuItem
-                        key={country.code}
-                        onClick={() => setSelectedCountry(country)}
-                        className="flex items-center gap-3 cursor-pointer hover:bg-gray-700"
-                      >
-                        <span className="text-lg">{country.flag}</span>
-                        <span>{country.name}</span>
-                      </DropdownMenuItem>
-                    ))}
+                  <DropdownMenuContent align="start" className="bg-gray-800 border-gray-700 text-white">
+                    <DropdownMenuItem className="flex items-center gap-3 cursor-pointer hover:bg-gray-700">
+                      <span className="text-lg">🇺🇸</span>
+                      <span>United States</span>
+                      <span className="ml-auto text-xs text-gray-400">Current</span>
+                    </DropdownMenuItem>
+                    <div className="px-3 py-2 text-sm text-gray-400 border-t border-gray-700">
+                      More countries coming soon!
+                    </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -2111,6 +2109,79 @@ export default function HomePage() {
           {/* Interest Selector */}
           {showInterestSelector && (
             <InterestSelector onSelect={handleInterestSelect} onClose={() => setShowInterestSelector(false)} />
+          )}
+
+          {/* Friends List */}
+          {showFriendsList && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md max-h-96 overflow-y-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-semibold text-white">Friends</h3>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-white hover:bg-gray-700"
+                    onClick={() => setShowFriendsList(false)}
+                  >
+                    <span className="text-xl">×</span>
+                  </Button>
+                </div>
+                
+                <div className="space-y-3">
+                  {friends.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                      <p className="text-gray-400 mb-4">No friends yet</p>
+                      <p className="text-sm text-gray-500">
+                        Sign up to start adding friends and connecting with people you meet!
+                      </p>
+                      <Button
+                        variant="default"
+                        className="mt-4 bg-blue-600 hover:bg-blue-700"
+                        onClick={() => {
+                          setShowFriendsList(false)
+                          setShowAuthModal(true)
+                        }}
+                      >
+                        Sign Up
+                      </Button>
+                    </div>
+                  ) : (
+                    friends.map((friend) => (
+                      <div key={friend.id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                            <span className="text-white font-semibold">
+                              {friend.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-white font-medium">{friend.name}</p>
+                            <p className="text-sm text-gray-400">
+                              {friend.incoming ? 'Wants to be friends' : 'Friend request sent'}
+                            </p>
+                          </div>
+                        </div>
+                        {friend.incoming && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => {
+                              // Accept friend request logic would go here
+                              addMessage(`You accepted ${friend.name}'s friend request!`, "stranger", "System")
+                              setShowFriendsList(false)
+                            }}
+                          >
+                            Accept
+                          </Button>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
           )}
 
           {/* User Profile Card */}
