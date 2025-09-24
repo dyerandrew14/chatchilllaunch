@@ -2,15 +2,42 @@
 // You can run this with Node.js: node signaling-server.js
 
 const WebSocket = require("ws")
+const http = require("http")
 
 const PORT = process.env.PORT || 8080
-const wss = new WebSocket.Server({ port: PORT })
+
+// Create HTTP server for health checks (keeps Render awake)
+const server = http.createServer((req, res) => {
+  if (req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ 
+      status: 'ok', 
+      clients: clients.size, 
+      rooms: rooms.size,
+      timestamp: new Date().toISOString()
+    }))
+  } else {
+    res.writeHead(200, { 'Content-Type': 'text/plain' })
+    res.end('WebRTC Signaling Server')
+  }
+})
+
+const wss = new WebSocket.Server({ server })
 
 // Store active connections
 const clients = new Map()
 const rooms = new Map()
 
-console.log(`WebSocket signaling server running on port ${PORT}`)
+// Start the server
+server.listen(PORT, () => {
+  console.log(`WebSocket signaling server running on port ${PORT}`)
+  console.log(`Health check available at http://localhost:${PORT}/health`)
+})
+
+// Keep server awake with periodic health checks
+setInterval(() => {
+  console.log(`Server status: ${clients.size} clients, ${rooms.size} rooms`)
+}, 30000) // Log every 30 seconds
 
 wss.on("connection", (ws) => {
   console.log("Client connected")
