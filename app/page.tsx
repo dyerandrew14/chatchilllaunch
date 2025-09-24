@@ -402,6 +402,28 @@ export default function HomePage() {
     console.log("localStream state changed:", localStream)
   }, [localStream])
 
+  // Refs for video elements to prevent re-rendering issues
+  const localVideoRef = useRef<HTMLVideoElement>(null)
+  const remoteVideoRef = useRef<HTMLVideoElement>(null)
+
+  // Set up local video stream when localStream changes
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      console.log("Setting local video srcObject:", localStream)
+      localVideoRef.current.srcObject = localStream
+      localVideoRef.current.play().catch(e => console.log("Local video play error:", e))
+    }
+  }, [localStream])
+
+  // Set up remote video stream when remoteStream changes
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      console.log("Setting remote video srcObject:", remoteStream)
+      remoteVideoRef.current.srcObject = remoteStream
+      remoteVideoRef.current.play().catch(e => console.log("Remote video play error:", e))
+    }
+  }, [remoteStream])
+
   // Render local video
   const renderLocalVideo = useCallback(() => {
     console.log("renderLocalVideo called, localStream:", localStream)
@@ -409,19 +431,13 @@ export default function HomePage() {
       <div className="relative w-full h-full">
         {localStream ? (
           <video
-            ref={(video) => {
-              if (video && localStream) {
-                console.log("Setting video srcObject:", localStream)
-                video.srcObject = localStream
-                video.play().catch(e => console.log("Video play error:", e))
-              }
-            }}
+            ref={localVideoRef}
             autoPlay
             muted
             playsInline
             className="w-full h-full object-cover"
-            onLoadedMetadata={() => console.log("Video metadata loaded")}
-            onCanPlay={() => console.log("Video can play")}
+            onLoadedMetadata={() => console.log("Local video metadata loaded")}
+            onCanPlay={() => console.log("Local video can play")}
           />
         ) : (
           <div className="flex items-center justify-center w-full h-full bg-gray-900">
@@ -486,14 +502,12 @@ export default function HomePage() {
       <div className="relative w-full h-full">
         {remoteStream ? (
           <video
-            ref={(video) => {
-              if (video && remoteStream) {
-                video.srcObject = remoteStream
-              }
-            }}
+            ref={remoteVideoRef}
             autoPlay
             playsInline
             className="w-full h-full object-cover"
+            onLoadedMetadata={() => console.log("Remote video metadata loaded")}
+            onCanPlay={() => console.log("Remote video can play")}
           />
         ) : (
           <div className="flex items-center justify-center w-full h-full bg-gray-800">
