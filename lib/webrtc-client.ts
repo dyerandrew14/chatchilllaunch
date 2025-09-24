@@ -168,6 +168,25 @@ export class WebRTCClient {
           }
           break
 
+        case "paired":
+          console.log("Paired with user:", message.partnerId, "in room:", message.roomId)
+          // Update room ID and create connection with partner
+          this.roomId = message.roomId
+          this.createPeerConnection(message.partnerId)
+          
+          // Only the user with higher ID creates the offer to avoid conflicts
+          if (this.userId > message.partnerId) {
+            console.log("Creating offer (higher ID):", this.userId, "vs", message.partnerId)
+            this.createAndSendOffer(message.partnerId)
+          } else {
+            console.log("Waiting for offer (lower ID):", this.userId, "vs", message.partnerId)
+          }
+          
+          if (this.config.onUserJoined) {
+            this.config.onUserJoined(message.partnerId)
+          }
+          break
+
         case "offer":
           console.log("Received offer from:", message.senderId)
           await this.handleOffer(message)

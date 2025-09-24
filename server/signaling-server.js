@@ -98,26 +98,73 @@ wss.on("connection", (ws) => {
         room.add(userId)
         currentRoom = roomId
 
-        // Send list of users in room
-        const usersInRoom = Array.from(room).filter((id) => id !== userId)
-        ws.send(
-          JSON.stringify({
-            type: "room-joined",
-            roomId,
-            users: usersInRoom,
-          }),
-        )
+        // Special handling for waiting room - implement pairing
+        if (roomId === "waiting-room") {
+          const usersInWaitingRoom = Array.from(room).filter((id) => id !== userId)
+          
+          // If there's another user waiting, pair them up
+          if (usersInWaitingRoom.length >= 1) {
+            const partnerId = usersInWaitingRoom[0] // Get the first waiting user
+            
+            // Create a unique room for the pair
+            const pairRoomId = `pair_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
+            
+            // Remove both users from waiting room
+            room.delete(userId)
+            room.delete(partnerId)
+            
+            // Create new pair room
+            rooms.set(pairRoomId, new Set([userId, partnerId]))
+            
+            // Get WebSocket connections for both users
+            const partnerWs = clients.get(partnerId)
+            
+            // Send pair notification to both users
+            ws.send(JSON.stringify({
+              type: "paired",
+              roomId: pairRoomId,
+              partnerId: partnerId,
+            }))
+            
+            if (partnerWs) {
+              partnerWs.send(JSON.stringify({
+                type: "paired", 
+                roomId: pairRoomId,
+                partnerId: userId,
+              }))
+            }
+            
+            console.log(`Paired users ${userId} and ${partnerId} in room ${pairRoomId}`)
+          } else {
+            // No one else waiting, stay in waiting room
+            ws.send(JSON.stringify({
+              type: "room-joined",
+              roomId,
+              users: [],
+            }))
+          }
+        } else {
+          // Regular room handling
+          const usersInRoom = Array.from(room).filter((id) => id !== userId)
+          ws.send(
+            JSON.stringify({
+              type: "room-joined",
+              roomId,
+              users: usersInRoom,
+            }),
+          )
 
-        // Notify others in room
-        broadcastToRoom(
-          roomId,
-          {
-            type: "user-joined",
-            userId,
+          // Notify others in room
+          broadcastToRoom(
             roomId,
-          },
-          userId,
-        )
+            {
+              type: "user-joined",
+              userId,
+              roomId,
+            },
+            userId,
+          )
+        }
 
         console.log(`User ${userId} joined room ${roomId}`)
         return
