@@ -25,8 +25,8 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocket.Server({ server })
 
 // Store active connections
-const clients = new Map()
-const rooms = new Map()
+const clients = new Map() // userId -> { ws, currentRoom }
+const rooms = new Map() // roomId -> Set of userIds
 const userCooldowns = new Map() // userId -> timestamp when they can join waiting room again
 
 // Start the server
@@ -51,7 +51,6 @@ setInterval(() => {
 wss.on("connection", (ws) => {
   console.log("Client connected")
   let userId = null
-  let currentRoom = null
 
   ws.on("message", (message) => {
     try {
@@ -60,7 +59,7 @@ wss.on("connection", (ws) => {
       // Handle user identification
       if (data.type === "register") {
         userId = data.userId
-        clients.set(userId, ws)
+        clients.set(userId, { ws, currentRoom: null })
         console.log(`User registered: ${userId}`)
         ws.send(JSON.stringify({ type: "registered", userId }))
         return
@@ -75,6 +74,8 @@ wss.on("connection", (ws) => {
       // Handle room operations
       if (data.type === "join") {
         const roomId = data.roomId
+        const clientData = clients.get(userId)
+        const currentRoom = clientData ? clientData.currentRoom : null
 
         // Leave current room if any
         if (currentRoom) {
@@ -96,6 +97,8 @@ wss.on("connection", (ws) => {
               )
             }
           }
+          // Clear current room from client data
+          clients.set(userId, { ws, currentRoom: null })
         }
 
         // Join new room
@@ -104,9 +107,7 @@ wss.on("connection", (ws) => {
         }
 
         const room = rooms.get(roomId)
-        room.add(userId)
-        currentRoom = roomId
-
+        
         // Special handling for waiting room - implement pairing
         if (roomId === "waiting-room") {
           // Check if user is in cooldown period (just left a room)
@@ -115,6 +116,8 @@ wss.on("connection", (ws) => {
           
           if (cooldownEnd && now < cooldownEnd) {
             // User is in cooldown, just add them to waiting room without pairing
+            room.add(userId)
+            clients.set(userId, { ws, currentRoom: roomId })
             ws.send(JSON.stringify({
               type: "room-joined",
               roomId,
@@ -127,11 +130,27 @@ wss.on("connection", (ws) => {
           // Remove cooldown if it exists
           userCooldowns.delete(userId)
           
+          // Get users already in waiting room (excluding current user)
           const usersInWaitingRoom = Array.from(room).filter((id) => id !== userId)
           
           // If there's another user waiting, pair them up
           if (usersInWaitingRoom.length >= 1) {
             const partnerId = usersInWaitingRoom[0] // Get the first waiting user
+            
+            // Verify partner is still available and not already paired
+            const partnerData = clients.get(partnerId)
+            if (!partnerData || partnerData.currentRoom !== roomId) {
+              // Partner is no longer available, just add to waiting room
+              room.add(userId)
+              clients.set(userId, { ws, currentRoom: roomId })
+              ws.send(JSON.stringify({
+                type: "room-joined",
+                roomId,
+                users: [],
+              }))
+              console.log(`Partner ${partnerId} no longer available, ${userId} added to waiting room`)
+              return
+            }
             
             // Create a unique room for the pair
             const pairRoomId = `pair_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
@@ -143,8 +162,9 @@ wss.on("connection", (ws) => {
             // Create new pair room
             rooms.set(pairRoomId, new Set([userId, partnerId]))
             
-            // Get WebSocket connections for both users
-            const partnerWs = clients.get(partnerId)
+            // Update both users' current room
+            clients.set(userId, { ws, currentRoom: pairRoomId })
+            clients.set(partnerId, { ...partnerData, currentRoom: pairRoomId })
             
             // Send pair notification to both users
             ws.send(JSON.stringify({
@@ -153,17 +173,17 @@ wss.on("connection", (ws) => {
               partnerId: partnerId,
             }))
             
-            if (partnerWs) {
-              partnerWs.send(JSON.stringify({
-                type: "paired", 
-                roomId: pairRoomId,
-                partnerId: userId,
-              }))
-            }
+            partnerData.ws.send(JSON.stringify({
+              type: "paired", 
+              roomId: pairRoomId,
+              partnerId: userId,
+            }))
             
             console.log(`Paired users ${userId} and ${partnerId} in room ${pairRoomId}`)
           } else {
             // No one else waiting, stay in waiting room
+            room.add(userId)
+            clients.set(userId, { ws, currentRoom: roomId })
             ws.send(JSON.stringify({
               type: "room-joined",
               roomId,
@@ -172,14 +192,15 @@ wss.on("connection", (ws) => {
           }
         } else {
           // Regular room handling
+          room.add(userId)
+          clients.set(userId, { ws, currentRoom: roomId })
           const usersInRoom = Array.from(room).filter((id) => id !== userId)
-          ws.send(
-            JSON.stringify({
-              type: "room-joined",
-              roomId,
-              users: usersInRoom,
-            }),
-          )
+          
+          ws.send(JSON.stringify({
+            type: "room-joined",
+            roomId,
+            users: usersInRoom,
+          }))
 
           // Notify others in room
           broadcastToRoom(
@@ -199,6 +220,9 @@ wss.on("connection", (ws) => {
 
       if (data.type === "leave") {
         const roomId = data.roomId
+        const clientData = clients.get(userId)
+        const currentRoom = clientData ? clientData.currentRoom : null
+        
         if (roomId === currentRoom && rooms.has(roomId)) {
           const room = rooms.get(roomId)
           room.delete(userId)
@@ -225,7 +249,8 @@ wss.on("connection", (ws) => {
             )
           }
 
-          currentRoom = null
+          // Clear current room from client data
+          clients.set(userId, { ws, currentRoom: null })
           console.log(`User ${userId} left room ${roomId}`)
         }
         return
@@ -241,17 +266,17 @@ wss.on("connection", (ws) => {
         }
 
         // Check if target user exists and is in the same room
-        const targetWs = clients.get(targetUserId)
+        const targetClientData = clients.get(targetUserId)
         const room = rooms.get(roomId)
 
-        if (targetWs && room && room.has(targetUserId)) {
+        if (targetClientData && room && room.has(targetUserId)) {
           // Forward the message to the target user
           const forwardMessage = {
             ...data,
             senderId: userId,
           }
 
-          targetWs.send(JSON.stringify(forwardMessage))
+          targetClientData.ws.send(JSON.stringify(forwardMessage))
           console.log(`Forwarded ${data.type} from ${userId} to ${targetUserId}`)
         } else {
           ws.send(
@@ -286,6 +311,9 @@ wss.on("connection", (ws) => {
     console.log(`Client disconnected: ${userId}`)
 
     // Remove from current room
+    const clientData = clients.get(userId)
+    const currentRoom = clientData ? clientData.currentRoom : null
+    
     if (currentRoom && rooms.has(currentRoom)) {
       const room = rooms.get(currentRoom)
       room.delete(userId)
@@ -321,9 +349,9 @@ wss.on("connection", (ws) => {
     room.forEach((id) => {
       if (excludeUserId && id === excludeUserId) return
 
-      const clientWs = clients.get(id)
-      if (clientWs && clientWs.readyState === WebSocket.OPEN) {
-        clientWs.send(JSON.stringify(message))
+      const clientData = clients.get(id)
+      if (clientData && clientData.ws && clientData.ws.readyState === WebSocket.OPEN) {
+        clientData.ws.send(JSON.stringify(message))
       }
     })
   }
