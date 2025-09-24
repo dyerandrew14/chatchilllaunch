@@ -128,35 +128,49 @@ export class WebRTCClient {
           console.log("Joined room:", message.roomId)
           console.log("Users in room:", message.users)
 
-          // Create peer connections with existing users
-          for (const peerId of message.users) {
-            this.createPeerConnection(peerId)
-            
-            // Only the user with higher ID creates the offer to avoid conflicts
-            if (this.userId > peerId) {
-              console.log("Creating offer (higher ID):", this.userId, "vs", peerId)
-              this.createAndSendOffer(peerId)
-            } else {
-              console.log("Waiting for offer (lower ID):", this.userId, "vs", peerId)
+          // Only create connections if there are other users (not just yourself)
+          if (message.users && message.users.length > 0) {
+            // Create peer connections with existing users
+            for (const peerId of message.users) {
+              // Prevent self-connections
+              if (peerId !== this.userId) {
+                this.createPeerConnection(peerId)
+                
+                // Only the user with higher ID creates the offer to avoid conflicts
+                if (this.userId > peerId) {
+                  console.log("Creating offer (higher ID):", this.userId, "vs", peerId)
+                  this.createAndSendOffer(peerId)
+                } else {
+                  console.log("Waiting for offer (lower ID):", this.userId, "vs", peerId)
+                }
+              }
             }
+          } else {
+            console.log("No other users in room, waiting for someone to join...")
           }
           break
 
         case "user-joined":
           console.log("User joined room:", message.userId)
-          // Create peer connection with the new user
-          this.createPeerConnection(message.userId)
           
-          // Only the user with higher ID creates the offer to avoid conflicts
-          if (this.userId > message.userId) {
-            console.log("Creating offer (higher ID):", this.userId, "vs", message.userId)
-            this.createAndSendOffer(message.userId)
+          // Prevent self-connections
+          if (message.userId !== this.userId) {
+            // Create peer connection with the new user
+            this.createPeerConnection(message.userId)
+            
+            // Only the user with higher ID creates the offer to avoid conflicts
+            if (this.userId > message.userId) {
+              console.log("Creating offer (higher ID):", this.userId, "vs", message.userId)
+              this.createAndSendOffer(message.userId)
+            } else {
+              console.log("Waiting for offer (lower ID):", this.userId, "vs", message.userId)
+            }
+            
+            if (this.config.onUserJoined) {
+              this.config.onUserJoined(message.userId)
+            }
           } else {
-            console.log("Waiting for offer (lower ID):", this.userId, "vs", message.userId)
-          }
-          
-          if (this.config.onUserJoined) {
-            this.config.onUserJoined(message.userId)
+            console.log("Ignoring self-connection attempt")
           }
           break
 
@@ -170,20 +184,26 @@ export class WebRTCClient {
 
         case "paired":
           console.log("Paired with user:", message.partnerId, "in room:", message.roomId)
-          // Update room ID and create connection with partner
-          this.roomId = message.roomId
-          this.createPeerConnection(message.partnerId)
           
-          // Only the user with higher ID creates the offer to avoid conflicts
-          if (this.userId > message.partnerId) {
-            console.log("Creating offer (higher ID):", this.userId, "vs", message.partnerId)
-            this.createAndSendOffer(message.partnerId)
+          // Prevent self-connections
+          if (message.partnerId !== this.userId) {
+            // Update room ID and create connection with partner
+            this.roomId = message.roomId
+            this.createPeerConnection(message.partnerId)
+            
+            // Only the user with higher ID creates the offer to avoid conflicts
+            if (this.userId > message.partnerId) {
+              console.log("Creating offer (higher ID):", this.userId, "vs", message.partnerId)
+              this.createAndSendOffer(message.partnerId)
+            } else {
+              console.log("Waiting for offer (lower ID):", this.userId, "vs", message.partnerId)
+            }
+            
+            if (this.config.onUserJoined) {
+              this.config.onUserJoined(message.partnerId)
+            }
           } else {
-            console.log("Waiting for offer (lower ID):", this.userId, "vs", message.partnerId)
-          }
-          
-          if (this.config.onUserJoined) {
-            this.config.onUserJoined(message.partnerId)
+            console.log("Ignoring self-pairing attempt")
           }
           break
 
