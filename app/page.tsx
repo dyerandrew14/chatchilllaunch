@@ -346,7 +346,7 @@ export default function HomePage() {
       const { WebRTCClient } = await import("@/lib/webrtc-client")
       
       // Get signaling server URL from environment
-      const signalingServerUrl = process.env.NEXT_PUBLIC_SIGNALING_SERVER_URL || "wss://chatchilllaunch.onrender.com"
+      const signalingServerUrl = "wss://chatchilllaunch.onrender.com"
       
       // Generate a unique user ID
       const userId = `user_${Math.random().toString(36).substring(2, 15)}`
