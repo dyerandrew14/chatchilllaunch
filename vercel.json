@@ -1,4 +1,7 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
   "env": {
     "NEXT_PUBLIC_SIGNALING_SERVER_URL": "wss://chatchilllaunch.onrender.com",
     "NEXT_PUBLIC_SUPABASE_URL": "https://cjacjtmujtsofrmrrxml.supabase.co",
