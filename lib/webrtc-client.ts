@@ -20,6 +20,8 @@ export class WebRTCClient {
   private config: WebRTCConfig
   private reconnectInterval: any = null
   private signalingServerUrl: string
+  private isRegistered: boolean = false
+  private pendingMessages: any[] = []
 
   constructor(userId: string, signalingServerUrl: string, config: WebRTCConfig = {}) {
     this.userId = userId
@@ -113,6 +115,13 @@ export class WebRTCClient {
       switch (message.type) {
         case "registered":
           console.log("Registered with signaling server as:", message.userId)
+          this.isRegistered = true
+          
+          // Process any pending messages now that we're registered
+          while (this.pendingMessages.length > 0) {
+            const pendingMessage = this.pendingMessages.shift()
+            this.sendToSignalingServer(pendingMessage)
+          }
           break
 
         case "room-joined":
@@ -176,6 +185,13 @@ export class WebRTCClient {
   // Send message to signaling server
   private sendToSignalingServer(message: any): void {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      // Queue non-register messages if we're not registered yet
+      if (!this.isRegistered && message.type !== "register") {
+        console.log("Queueing message until registered:", message.type)
+        this.pendingMessages.push(message)
+        return
+      }
+
       try {
         this.socket.send(JSON.stringify(message))
         console.log("Message sent to signaling server:", message.type)
@@ -451,6 +467,10 @@ export class WebRTCClient {
       this.socket.close()
       this.socket = null
     }
+
+    // Reset registration state
+    this.isRegistered = false
+    this.pendingMessages = []
 
     this.stopLocalStream()
   }
