@@ -129,6 +129,10 @@ export class WebRTCClient {
 
         case "user-joined":
           console.log("User joined room:", message.userId)
+          // Create peer connection with the new user and send offer
+          this.createPeerConnection(message.userId)
+          this.createAndSendOffer(message.userId)
+          
           if (this.config.onUserJoined) {
             this.config.onUserJoined(message.userId)
           }

@@ -519,9 +519,10 @@ export default function HomePage() {
       setIsConnecting(true)
       setIsSearchingForStranger(true)
       
-      // Join WebRTC room
+      // Join WebRTC room (use a general lobby for live users)
       console.log("🌐 Joining WebRTC room...")
-      await joinVideoChat("local-test-room")
+      const roomId = "general-lobby" // Changed from local-test-room for live deployment
+      await joinVideoChat(roomId)
       console.log("✅ WebRTC connection established")
       
     } catch (error) {
