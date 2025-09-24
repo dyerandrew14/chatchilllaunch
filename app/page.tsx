@@ -686,6 +686,9 @@ export default function HomePage() {
     // Show finding next message
     addMessage(`Finding next person in ${currentLobby} lobby...`, "stranger", "System")
 
+    // Add a small delay to ensure the disconnect is fully processed
+    await new Promise(resolve => setTimeout(resolve, 500))
+
     // Start a new chat
     await startChat()
   }, [isAuthenticated, currentLobby, addMessage, startChat, addDebugLog, webrtcClient])

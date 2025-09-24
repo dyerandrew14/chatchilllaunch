@@ -177,6 +177,14 @@ export class WebRTCClient {
         case "user-left":
           console.log("User left room:", message.userId)
           this.closePeerConnection(message.userId)
+          
+          // If we're in a paired room and our partner left, rejoin waiting room
+          if (this.roomId && this.roomId.startsWith("pair_")) {
+            console.log("Partner left paired room, rejoining waiting room...")
+            this.roomId = null
+            this.joinRoom("waiting-room")
+          }
+          
           if (this.config.onUserLeft) {
             this.config.onUserLeft(message.userId)
           }
