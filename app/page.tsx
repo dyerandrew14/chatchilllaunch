@@ -1000,17 +1000,6 @@ export default function HomePage() {
 
   // Removed duplicate renderRemoteVideo function - using WebRTC version instead
 
-  // Handle country selection - VIP feature
-  const handleCountrySelect = useCallback(() => {
-    // Check if user is logged in
-    if (!isAuthenticated) {
-      addMessage("Please sign in to select country", "stranger", "System")
-      setShowAuthModal(true)
-      return
-    }
-
-    setShowCountrySelector(true)
-  }, [isAuthenticated, addMessage])
 
   // Change country
   const changeCountry = useCallback(
@@ -1881,15 +1870,30 @@ export default function HomePage() {
 
               {/* Secondary controls - mobile optimized */}
               <div className={`${isMobile ? 'grid grid-cols-3 gap-1 px-2 pb-2' : 'grid grid-cols-3 gap-2'} p-2 pt-0`}>
-                <Button
-                  variant="outline"
-                  className={`${isMobile ? 'h-10 text-sm' : 'h-12'} bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-white border-gray-600 ${isMobile ? "border-0" : ""}`}
-                  onClick={handleCountrySelect}
-                >
-                  <span className="text-lg mr-1">{selectedCountry.flag}</span>
-                  <span className={isMobile ? "text-xs" : ""}>Country</span>
-                  <ChevronDown className="ml-1 h-3 w-3" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={`${isMobile ? 'h-10 text-sm' : 'h-12'} bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-white border-gray-600 ${isMobile ? "border-0" : ""}`}
+                    >
+                      <span className="text-lg mr-1">{selectedCountry.flag}</span>
+                      <span className={isMobile ? "text-xs" : ""}>Country</span>
+                      <ChevronDown className="ml-1 h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="bg-gray-800 border-gray-700 text-white max-h-60 overflow-y-auto">
+                    {COUNTRIES.map((country) => (
+                      <DropdownMenuItem
+                        key={country.code}
+                        onClick={() => setSelectedCountry(country)}
+                        className="flex items-center gap-3 cursor-pointer hover:bg-gray-700"
+                      >
+                        <span className="text-lg">{country.flag}</span>
+                        <span>{country.name}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
